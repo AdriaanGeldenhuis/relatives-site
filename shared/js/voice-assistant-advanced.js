@@ -208,8 +208,12 @@ class AdvancedVoiceAssistant {
             return;
         }
         
-        // Silent restart
-        instance.scheduleRestart(800);
+        // Restart listening after error
+        setTimeout(() => {
+            if (instance.modalOpen && !instance.processingCommand && !instance.isSpeaking) {
+                instance.startListening();
+            }
+        }, 800);
     }
 
     static onNativeSpeakStart() {
@@ -222,8 +226,13 @@ class AdvancedVoiceAssistant {
         const instance = AdvancedVoiceAssistant.getInstance();
         instance.isSpeaking = false;
         
+        // Start listening after TTS completes
         if (instance.modalOpen && !instance.processingCommand) {
-            instance.scheduleRestart(600);
+            setTimeout(() => {
+                if (instance.modalOpen && !instance.isSpeaking && !instance.processingCommand) {
+                    instance.startListening();
+                }
+            }, 500);
         }
     }
 
@@ -251,13 +260,18 @@ class AdvancedVoiceAssistant {
     }
 
     startListening() {
-        // Don't start if already listening or busy
-        if (this.recognitionActive || this.isListening || this.isSpeaking || this.processingCommand) {
+        // For native: don't start if speaking (can't do both)
+        // For web: allow starting even while speaking (user can interrupt)
+        if (this.isNativeApp) {
+            if (this.recognitionActive || this.isListening || this.isSpeaking || this.processingCommand) {
+                return;
+            }
+            this.startNativeListening();
             return;
         }
 
-        if (this.isNativeApp) {
-            this.startNativeListening();
+        // Web: allow listening while speaking for natural interruption
+        if (this.recognitionActive || this.isListening || this.processingCommand) {
             return;
         }
 
@@ -270,6 +284,8 @@ class AdvancedVoiceAssistant {
 
         try {
             this.recognition.start();
+            this.updateStatus('🎤', 'Listening...', 'Speak now');
+            this.updateTranscript('Listening...');
         } catch (error) {
             if (error.name === 'InvalidStateError') {
                 // Already running, ignore
@@ -367,17 +383,33 @@ class AdvancedVoiceAssistant {
 
         // Reset state
         this.processingCommand = false;
+        this.isSpeaking = false;
+        this.isListening = false;
+        this.recognitionActive = false;
         this.lastTranscript = '';
         
         // Show initial state
         this.updateStatus('🎤', 'Hi there!', 'How can I help?');
-        this.updateTranscript('Tap mic or just speak...');
+        this.updateTranscript('Listening...');
         this.showSuggestions(true);
 
-        // Quick greeting then start listening
-        this.speak('How can I help?', () => {
-            this.startListening();
-        }, 1.2);
+        // For native: speak and let onNativeSpeakDone handle listening
+        // For web: speak then start listening via callback
+        if (this.isNativeApp) {
+            this.speak('How can I help?');
+            // Native will call onNativeSpeakDone which starts listening
+        } else {
+            // Web: start listening immediately, speak in background
+            // This is more responsive - user can interrupt
+            this.speak('How can I help?');
+            
+            // Start listening after a short delay for speech to begin
+            setTimeout(() => {
+                if (this.modalOpen && !this.isListening && !this.recognitionActive) {
+                    this.startListening();
+                }
+            }, 800);
+        }
     }
 
     closeModal() {
@@ -975,15 +1007,6 @@ class AdvancedVoiceAssistant {
 
         utterance.onstart = () => {
             this.isSpeaking = true;
-            this.isListening = false;
-            this.recognitionActive = false;
-        };
-
-        utterance.onend = () => {
-            this.isSpeaking = false;
-            if (onEndCallback) {
-                setTimeout(onEndCallback, 200);
-            }
         };
 
         utterance.onerror = (event) => {
@@ -996,13 +1019,14 @@ class AdvancedVoiceAssistant {
             }
         };
 
-        // Fallback timeout in case onend doesn't fire
+        // Fallback timeout in case onend doesn't fire (Chrome bug)
         const fallbackTimeout = setTimeout(() => {
             if (this.isSpeaking) {
+                console.log('🔊 Speech fallback timeout triggered');
                 this.isSpeaking = false;
                 if (onEndCallback) onEndCallback();
             }
-        }, (text.length * 80) + 2000); // Rough estimate based on text length
+        }, (text.length * 100) + 3000);
 
         utterance.onend = () => {
             clearTimeout(fallbackTimeout);
