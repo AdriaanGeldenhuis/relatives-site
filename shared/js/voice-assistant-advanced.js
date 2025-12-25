@@ -188,6 +188,7 @@ class AdvancedVoiceAssistant {
         instance.handleTranscript((text || '').trim());
     }
 
+
     static onNativeError(code, message) {
         const instance = AdvancedVoiceAssistant.getInstance();
         instance.isListening = false;
@@ -195,15 +196,26 @@ class AdvancedVoiceAssistant {
         if (instance.dom.micBtn) instance.dom.micBtn.classList.remove('listening');
         if (instance.dom.voiceStatus) instance.dom.voiceStatus.classList.remove('listening');
         
+        // Silent errors - just restart listening without showing error
+        const silentErrors = ['no-speech', 'no-match', 'busy', 'client', 'audio'];
+        
+        if (silentErrors.includes(code)) {
+            console.log('🎤 Minor error, restarting:', code);
+            setTimeout(() => {
+                if (instance.modalOpen && !instance.processingCommand && !instance.isSpeaking) {
+                    instance.startListening();
+                }
+            }, 500);
+            return;
+        }
+        
+        // Real errors - show to user
         let userMessage = 'Something went wrong';
         let subtext = 'Please try again';
         
         switch (code) {
-            case 'no-speech':
-                userMessage = 'No speech detected';
-                subtext = 'Try speaking again';
-                break;
             case 'network':
+            case 'network-timeout':
                 userMessage = 'Network error';
                 subtext = 'Check your connection';
                 break;
@@ -212,8 +224,8 @@ class AdvancedVoiceAssistant {
                 subtext = 'Enable in settings';
                 break;
             default:
-                userMessage = 'Recognition error';
-                subtext = message || 'Try again';
+                userMessage = 'Error';
+                subtext = 'Tap to try again';
         }
         
         instance.updateStatus('❌', userMessage, subtext);
@@ -221,7 +233,7 @@ class AdvancedVoiceAssistant {
         if (code !== 'not-allowed') {
             setTimeout(() => {
                 if (instance.modalOpen && !instance.processingCommand) {
-                    instance.startNativeListening();
+                    instance.startListening();
                 }
             }, 2000);
         }
@@ -238,7 +250,7 @@ class AdvancedVoiceAssistant {
         const instance = AdvancedVoiceAssistant.getInstance();
         instance.isSpeaking = false;
         
-        // After speaking, start listening again
+        // After speaking, continue listening
         if (instance.modalOpen && !instance.processingCommand) {
             setTimeout(() => {
                 if (instance.modalOpen && !instance.processingCommand && !instance.isSpeaking) {
@@ -403,6 +415,19 @@ class AdvancedVoiceAssistant {
     
     handleTranscript(transcript) {
         if (!transcript) return;
+
+        // Stop word detection - close conversation
+        const stopWords = ['stop', 'bye', 'goodbye', 'cancel', 'close', 'exit', 'quit', 'thanks', 'thank you'];
+        const lowerTranscript = transcript.toLowerCase();
+        for (const word of stopWords) {
+            if (lowerTranscript.includes(word)) {
+                this.updateTranscript(transcript);
+                this.speak('Goodbye! Talk to you later.', () => {
+                    this.closeModal();
+                });
+                return;
+            }
+        }
 
         this.updateTranscript(transcript);
 
