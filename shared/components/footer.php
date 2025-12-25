@@ -1,12 +1,15 @@
 <?php
 /**
- * GLOBAL FOOTER - SUZI v7.0
- * Simple, Reliable, Mobile-First
+ * GLOBAL FOOTER - WITH ADVANCED VOICE ASSISTANT
  */
 ?>
+    <!-- Global Footer -->
     <footer class="global-footer" id="globalFooter">
         <style>
-            .main-content { padding-bottom: 50px; }
+            /* Same styles as before */
+            .main-content {
+                padding-bottom: 40px;
+            }
 
             .global-footer {
                 position: fixed;
@@ -25,407 +28,440 @@
                 justify-content: space-between;
                 align-items: flex-end;
             }
-
+            
             .footer-btn {
                 pointer-events: all;
                 border: none;
                 cursor: pointer;
-                transition: all 0.3s ease;
+                transition: all 0.3s;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 text-decoration: none;
                 position: relative;
+                flex-shrink: 0;
             }
-
+            
             .mic-btn {
-                width: 52px;
-                height: 52px;
+                width: 47px;
+                height: 47px;
                 border-radius: 50%;
                 background: linear-gradient(135deg, #667eea, #764ba2);
                 color: white;
-                font-size: 26px;
-                box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+                font-size: 24px;
+                box-shadow: 0 10px 40px rgba(102, 126, 234, 0.5);
             }
-
+            
             .mic-btn:hover {
-                transform: scale(1.1);
+                transform: scale(1.1) translateY(-5px);
+            }
+            
+            .mic-btn.listening {
+                animation: micPulse 1.5s ease-in-out infinite;
             }
 
-            .mic-btn.active {
+            .mic-btn.wake-listening {
+                animation: wakeWordPulse 2s ease-in-out infinite;
                 background: linear-gradient(135deg, #43e97b, #38f9d7);
             }
-
-            .mic-btn.listening {
-                animation: pulse 1.5s infinite;
+            
+            @keyframes micPulse {
+                0%, 100% {
+                    box-shadow: 0 10px 40px rgba(102, 126, 234, 0.5);
+                }
+                50% {
+                    box-shadow: 0 10px 60px rgba(102, 126, 234, 1), 0 0 30px rgba(102, 126, 234, 0.8);
+                }
             }
 
-            @keyframes pulse {
-                0%, 100% { box-shadow: 0 8px 25px rgba(102,126,234,0.4); }
-                50% { box-shadow: 0 8px 40px rgba(102,126,234,0.8), 0 0 0 10px rgba(102,126,234,0.2); }
+            @keyframes wakeWordPulse {
+                0%, 100% {
+                    box-shadow: 0 10px 40px rgba(67, 233, 123, 0.5);
+                    transform: scale(1);
+                }
+                50% {
+                    box-shadow: 0 10px 60px rgba(67, 233, 123, 1), 0 0 30px rgba(67, 233, 123, 0.8);
+                    transform: scale(1.05);
+                }
             }
-
+            
             .footer-right {
                 display: flex;
                 align-items: flex-end;
-                gap: 12px;
+                gap: 15px;
             }
-
-            .tracking-btn, .help-btn-footer, .plus-btn {
-                width: 46px;
-                height: 46px;
+            
+            .tracking-btn {
+                width: 47px;
+                height: 47px;
                 border-radius: 50%;
+                background: linear-gradient(135deg, #f093fb, #f5576c);
                 color: white;
-                font-size: 22px;
-                box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+                font-size: 24px;
+                box-shadow: 0 10px 40px rgba(240, 147, 251, 0.5);
             }
-
-            .tracking-btn { background: linear-gradient(135deg, #f093fb, #f5576c); }
-            .help-btn-footer { background: linear-gradient(135deg, #ffecd2, #fcb69f); color: #333; }
-            .plus-btn { background: linear-gradient(135deg, #43e97b, #38f9d7); font-size: 26px; }
-
-            .plus-btn.active { transform: rotate(45deg); }
-
-            .plus-wrapper { position: relative; }
-
+            
+            .tracking-btn:hover {
+                transform: scale(1.1) translateY(-5px);
+            }
+            
+            .plus-wrapper {
+                position: relative;
+            }
+            
+            .plus-btn {
+                width: 47px;
+                height: 47px;
+                border-radius: 50%;
+                background: linear-gradient(135deg, #43e97b, #38f9d7);
+                color: white;
+                font-size: 28px;
+                box-shadow: 0 10px 40px rgba(67, 233, 123, 0.5);
+            }
+            
+            .plus-btn:hover {
+                transform: scale(1.1) translateY(-5px);
+            }
+            
+            .plus-btn.active {
+                transform: rotate(45deg);
+            }
+            
             .plus-menu {
                 position: absolute;
-                bottom: 60px;
+                bottom: 65px;
                 right: 0;
                 display: none;
                 flex-direction: column;
-                gap: 10px;
+                gap: 12px;
                 pointer-events: all;
+                z-index: 1000;
             }
-
-            .plus-menu.active { display: flex; }
-
+            
+            .plus-menu.active {
+                display: flex;
+            }
+            
             .plus-menu-item {
                 display: flex;
                 align-items: center;
-                gap: 10px;
-                padding: 10px 18px;
+                gap: 12px;
+                padding: 12px 20px;
                 background: white;
-                border-radius: 30px;
-                box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+                border-radius: 50px;
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+                cursor: pointer;
                 text-decoration: none;
                 color: #333;
                 font-weight: 600;
                 white-space: nowrap;
             }
-
-            .plus-menu-item:hover { transform: translateX(-8px); }
-
+            
+            .plus-menu-item:hover {
+                transform: translateX(-10px);
+            }
+            
+            .plus-menu-icon {
+                font-size: 24px;
+                width: 35px;
+                text-align: center;
+            }
+            
             .menu-backdrop {
                 position: fixed;
                 inset: 0;
-                background: rgba(0,0,0,0.3);
+                background: rgba(0, 0, 0, 0.3);
+                backdrop-filter: blur(4px);
                 z-index: 998;
                 display: none;
                 pointer-events: all;
             }
-
-            .menu-backdrop.active { display: block; }
-
-            /* ===== SUZI MODAL ===== */
-            .suzi-modal {
+            
+            .menu-backdrop.active {
+                display: block;
+            }
+            
+            .voice-modal {
                 position: fixed;
                 inset: 0;
-                z-index: 10000;
+                background: rgba(0, 0, 0, 0.9);
+                backdrop-filter: blur(20px);
+                z-index: 9999;
                 display: none;
                 align-items: center;
                 justify-content: center;
                 padding: 20px;
             }
-
-            .suzi-modal.active { display: flex; }
-
-            .suzi-overlay {
-                position: absolute;
-                inset: 0;
-                background: rgba(0,0,0,0.9);
+            
+            .voice-modal.active {
+                display: flex;
+                animation: voiceModalFadeIn 0.4s ease;
             }
-
-            .suzi-content {
-                position: relative;
-                background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
-                border-radius: 28px;
-                padding: 40px 30px;
-                max-width: 420px;
+            
+            @keyframes voiceModalFadeIn {
+                from {
+                    opacity: 0;
+                }
+                to {
+                    opacity: 1;
+                }
+            }
+            
+            .voice-modal-content {
+                background: linear-gradient(180deg, rgba(102, 126, 234, 0.95), rgba(118, 75, 162, 0.95));
+                backdrop-filter: blur(40px);
+                border-radius: 32px;
+                padding: 60px 40px;
+                max-width: 550px;
                 width: 100%;
-                box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+                position: relative;
+                box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+                animation: voiceModalSlideUp 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             }
-
-            .suzi-close {
+            
+            @keyframes voiceModalSlideUp {
+                from {
+                    transform: translateY(50px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
+            }
+            
+            .close-voice-modal {
                 position: absolute;
-                top: 12px;
-                right: 12px;
-                width: 40px;
-                height: 40px;
+                top: 20px;
+                right: 20px;
+                width: 44px;
+                height: 44px;
                 border-radius: 50%;
-                background: rgba(255,255,255,0.15);
+                background: rgba(255, 255, 255, 0.2);
                 border: none;
                 color: white;
-                font-size: 22px;
+                font-size: 24px;
                 cursor: pointer;
-            }
-
-            .suzi-close:hover { background: rgba(255,255,255,0.25); }
-
-            /* Avatar */
-            .suzi-avatar {
-                width: 100px;
-                height: 100px;
-                margin: 0 auto 20px;
-                border-radius: 50%;
-                background: rgba(255,255,255,0.2);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 50px;
                 transition: all 0.3s;
             }
-
-            .suzi-avatar.listening {
-                animation: avatarPulse 1.5s infinite;
-                background: rgba(67,233,123,0.3);
+            
+            .close-voice-modal:hover {
+                background: rgba(255, 255, 255, 0.3);
+                transform: rotate(90deg);
             }
-
-            .suzi-avatar.speaking {
-                animation: avatarBounce 0.6s infinite;
-            }
-
-            .suzi-avatar.thinking {
-                animation: avatarSpin 1s linear infinite;
-            }
-
-            .suzi-avatar.success { background: rgba(67,233,123,0.3); }
-            .suzi-avatar.error { background: rgba(255,87,87,0.3); }
-
-            @keyframes avatarPulse {
-                0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(67,233,123,0.4); }
-                50% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(67,233,123,0); }
-            }
-
-            @keyframes avatarBounce {
-                0%, 100% { transform: translateY(0); }
-                50% { transform: translateY(-6px); }
-            }
-
-            @keyframes avatarSpin {
-                from { transform: rotate(0deg); }
-                to { transform: rotate(360deg); }
-            }
-
-            /* Status */
-            .suzi-status {
+            
+            .voice-status {
                 text-align: center;
-                margin-bottom: 16px;
+                margin-bottom: 40px;
             }
-
-            .suzi-status-text {
+            
+            .status-icon {
+                font-size: 72px;
+                margin-bottom: 20px;
+                animation: statusIconFloat 3s ease-in-out infinite;
+            }
+            
+            @keyframes statusIconFloat {
+                0%, 100% {
+                    transform: translateY(0) rotate(0deg);
+                }
+                50% {
+                    transform: translateY(-10px) rotate(5deg);
+                }
+            }
+            
+            .voice-status.listening .status-icon {
+                animation: voicePulse 1.5s ease-in-out infinite;
+            }
+            
+            @keyframes voicePulse {
+                0%, 100% {
+                    transform: scale(1);
+                }
+                50% {
+                    transform: scale(1.2);
+                }
+            }
+            
+            .status-text {
                 font-size: 24px;
                 font-weight: 700;
                 color: white;
-                margin-bottom: 4px;
+                margin-bottom: 10px;
             }
-
-            .suzi-status-subtext {
-                font-size: 14px;
-                color: rgba(255,255,255,0.8);
-            }
-
-            /* Waveform */
-            .suzi-waveform {
-                display: flex;
-                justify-content: center;
-                gap: 4px;
-                height: 30px;
-                margin-bottom: 16px;
-            }
-
-            .suzi-waveform span {
-                width: 4px;
-                height: 10px;
-                background: rgba(255,255,255,0.4);
-                border-radius: 2px;
-            }
-
-            .suzi-waveform.active span {
-                animation: wave 0.8s ease-in-out infinite;
-                background: white;
-            }
-
-            .suzi-waveform.active span:nth-child(1) { animation-delay: 0s; }
-            .suzi-waveform.active span:nth-child(2) { animation-delay: 0.1s; }
-            .suzi-waveform.active span:nth-child(3) { animation-delay: 0.2s; }
-            .suzi-waveform.active span:nth-child(4) { animation-delay: 0.3s; }
-            .suzi-waveform.active span:nth-child(5) { animation-delay: 0.2s; }
-            .suzi-waveform.active span:nth-child(6) { animation-delay: 0.1s; }
-            .suzi-waveform.active span:nth-child(7) { animation-delay: 0s; }
-
-            @keyframes wave {
-                0%, 100% { height: 10px; }
-                50% { height: 28px; }
-            }
-
-            /* Transcript */
-            .suzi-transcript {
-                background: rgba(255,255,255,0.1);
-                border-radius: 14px;
-                padding: 16px;
-                min-height: 50px;
-                color: white;
+            
+            .status-subtext {
                 font-size: 16px;
+                color: rgba(255, 255, 255, 0.8);
                 font-weight: 500;
-                text-align: center;
-                margin-bottom: 16px;
             }
-
-            .suzi-transcript.interim { color: rgba(255,255,255,0.6); font-style: italic; }
-
-            /* Tap to Speak Button */
-            .suzi-tap-btn {
-                display: block;
-                width: 100%;
-                padding: 14px;
-                background: rgba(255,255,255,0.15);
-                border: 2px solid rgba(255,255,255,0.3);
-                border-radius: 14px;
+            
+            .voice-transcript {
+                background: rgba(255, 255, 255, 0.15);
+                border-radius: 16px;
+                padding: 20px;
+                margin: 20px 0;
+                min-height: 60px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
                 color: white;
-                font-size: 16px;
+                font-size: 18px;
                 font-weight: 600;
-                cursor: pointer;
-                margin-bottom: 16px;
-                transition: all 0.3s;
-            }
-
-            .suzi-tap-btn:hover {
-                background: rgba(255,255,255,0.25);
-            }
-
-            .suzi-tap-btn:active {
-                transform: scale(0.98);
-            }
-
-            /* Suggestions */
-            .suzi-suggestions {
                 text-align: center;
             }
-
-            .suzi-suggestions-title {
-                color: rgba(255,255,255,0.7);
-                font-size: 12px;
+            
+            .voice-suggestions {
+                text-align: center;
+            }
+            
+            .suggestion-title {
+                color: rgba(255, 255, 255, 0.9);
+                font-size: 14px;
                 font-weight: 700;
                 text-transform: uppercase;
                 letter-spacing: 1px;
-                margin-bottom: 12px;
+                margin-bottom: 15px;
             }
-
-            .suzi-suggestions-list {
+            
+            .suggestion-items {
                 display: flex;
                 flex-direction: column;
-                gap: 8px;
+                gap: 10px;
             }
-
-            .suzi-suggestion {
-                background: rgba(255,255,255,0.1);
-                border: none;
+            
+            .suggestion-btn {
+                background: rgba(255, 255, 255, 0.15);
+                border: 2px solid rgba(255, 255, 255, 0.3);
                 border-radius: 12px;
-                padding: 12px 16px;
+                padding: 14px 20px;
                 color: white;
-                font-size: 14px;
-                font-weight: 500;
+                font-size: 15px;
+                font-weight: 600;
                 cursor: pointer;
                 text-align: left;
-                transition: all 0.2s;
+                transition: all 0.3s;
             }
-
-            .suzi-suggestion:hover {
-                background: rgba(255,255,255,0.2);
-                transform: translateX(4px);
+            
+            .suggestion-btn:hover {
+                background: rgba(255, 255, 255, 0.25);
+                transform: translateX(5px);
             }
-
-            .suzi-hint {
-                margin-top: 16px;
-                text-align: center;
-                color: rgba(255,255,255,0.5);
-                font-size: 12px;
-            }
-
-            /* Mobile */
-            @media (max-width: 480px) {
-                .footer-container { padding: 0 12px 12px; }
-                .mic-btn { width: 48px; height: 48px; font-size: 24px; }
-                .tracking-btn, .help-btn-footer, .plus-btn { width: 42px; height: 42px; font-size: 20px; }
-                .suzi-content { padding: 30px 20px; }
-                .suzi-avatar { width: 80px; height: 80px; font-size: 40px; }
-                .suzi-status-text { font-size: 20px; }
+            
+            @media (max-width: 768px) {
+                .footer-container {
+                    padding: 0 15px 15px;
+                }
+                
+                .mic-btn, .tracking-btn, .plus-btn {
+                    width: 43px;
+                    height: 43px;
+                    font-size: 21px;
+                }
+                
+                .plus-btn {
+                    font-size: 24px;
+                }
+                
+                .voice-modal-content {
+                    padding: 50px 30px;
+                }
+                
+                .status-icon {
+                    font-size: 64px;
+                }
+                
+                .status-text {
+                    font-size: 20px;
+                }
             }
         </style>
-
+        
         <div class="menu-backdrop" id="menuBackdrop" onclick="closePlusMenu()"></div>
-
+        
         <div class="footer-container">
-            <button class="footer-btn mic-btn" id="micBtn">🎤</button>
+            <button class="footer-btn mic-btn" id="micBtn" onclick="AdvancedVoiceAssistant.openModal()">
+                🎤
+            </button>
 
             <div class="footer-right">
-                <button class="footer-btn help-btn-footer" id="helpBtn">❓</button>
-                <a href="/tracking/" class="footer-btn tracking-btn">📍</a>
+                <button class="footer-btn help-btn-footer" id="helpBtn" title="Help">
+                 ❓
+                </button>
+    
+                <a href="/tracking/index.php" class="footer-btn tracking-btn">
+                 📍
+                </a>
+                
                 <div class="plus-wrapper">
                     <div class="plus-menu" id="plusMenu">
-                        <a href="/shopping/" class="plus-menu-item"><span>🛒</span> Shopping</a>
-                        <a href="/notes/" class="plus-menu-item"><span>📝</span> Note</a>
-                        <a href="/schedule/" class="plus-menu-item"><span>⏰</span> Reminder</a>
-                        <a href="/calendar/" class="plus-menu-item"><span>📅</span> Event</a>
-                        <a href="/messages/" class="plus-menu-item"><span>💬</span> Message</a>
+                        <a href="/shopping/" class="plus-menu-item">
+                            <span class="plus-menu-icon">🛒</span>
+                            <span>Shopping</span>
+                        </a>
+                        <a href="/notes/" class="plus-menu-item">
+                            <span class="plus-menu-icon">📝</span>
+                            <span>Note</span>
+                        </a>
+                        <a href="/schedule/" class="plus-menu-item">
+                            <span class="plus-menu-icon">⏰</span>
+                            <span>Reminder</span>
+                        </a>
+                        <a href="/calendar/" class="plus-menu-item">
+                            <span class="plus-menu-icon">📅</span>
+                            <span>Event</span>
+                        </a>
+                        <a href="/messages/" class="plus-menu-item">
+                            <span class="plus-menu-icon">💬</span>
+                            <span>Message</span>
+                        </a>
                     </div>
-                    <button class="footer-btn plus-btn" id="plusBtn" onclick="togglePlusMenu()">➕</button>
+                    
+                    <button class="footer-btn plus-btn" id="plusBtn" onclick="togglePlusMenu()">
+                        ➕
+                    </button>
                 </div>
             </div>
         </div>
     </footer>
 
-    <!-- SUZI MODAL -->
-    <div class="suzi-modal" id="suziModal">
-        <div class="suzi-overlay" id="suziOverlay"></div>
-        <div class="suzi-content">
-            <button class="suzi-close" id="suziCloseBtn">✕</button>
-
-            <div class="suzi-avatar" id="suziAvatar">
-                <span id="suziAvatarIcon">🎤</span>
+    <div class="voice-modal" id="voiceModal">
+        <div class="voice-modal-content">
+            <button class="close-voice-modal" onclick="AdvancedVoiceAssistant.getInstance().closeModal()">✕</button>
+            
+            <div class="voice-status" id="voiceStatus">
+                <div class="status-icon" id="statusIcon">🎤</div>
+                <div class="status-text" id="statusText">Ask me anything</div>
+                <div class="status-subtext" id="statusSubtext">Powered by Alex AI</div>
             </div>
 
-            <div class="suzi-status">
-                <div class="suzi-status-text" id="suziStatusText">Hi!</div>
-                <div class="suzi-status-subtext" id="suziStatusSubtext">I'm Suzi</div>
+            <div class="voice-transcript" id="voiceTranscript">
+                Listening...
             </div>
 
-            <div class="suzi-waveform" id="suziWaveform">
-                <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-            </div>
-
-            <div class="suzi-transcript" id="suziTranscript">Listening...</div>
-
-            <button class="suzi-tap-btn" id="suziTapToSpeak">🎤 Tap to Speak</button>
-
-            <div class="suzi-suggestions" id="suziSuggestions">
-                <div class="suzi-suggestions-title">Try saying:</div>
-                <div class="suzi-suggestions-list">
-                    <button class="suzi-suggestion" onclick="Suzi.suggestion('Add milk to shopping')">🛒 "Add milk to shopping"</button>
-                    <button class="suzi-suggestion" onclick="Suzi.suggestion('What is the weather today')">🌤️ "What's the weather?"</button>
-                    <button class="suzi-suggestion" onclick="Suzi.suggestion('Create an event tomorrow at 3pm')">📅 "Create an event"</button>
-                    <button class="suzi-suggestion" onclick="Suzi.suggestion('Take a note buy cake')">📝 "Take a note"</button>
+            <div class="voice-suggestions" id="voiceSuggestions">
+                <div class="suggestion-title">Try asking:</div>
+                <div class="suggestion-items">
+                    <button onclick="AdvancedVoiceAssistant.getInstance().executeSuggestion('Add milk to shopping')" class="suggestion-btn">
+                        🛒 "Add milk to shopping"
+                    </button>
+                    <button onclick="AdvancedVoiceAssistant.getInstance().executeSuggestion('What is the weather today')" class="suggestion-btn">
+                        🌤️ "What's the weather today?"
+                    </button>
+                    <button onclick="AdvancedVoiceAssistant.getInstance().executeSuggestion('Create an event tomorrow at 3pm')" class="suggestion-btn">
+                        📅 "Create an event tomorrow at 3pm"
+                    </button>
+                    <button onclick="AdvancedVoiceAssistant.getInstance().executeSuggestion('Take a note: buy birthday cake')" class="suggestion-btn">
+                        📝 "Take a note: buy birthday cake"
+                    </button>
                 </div>
             </div>
-
-            <div class="suzi-hint">Say <strong>"Stop"</strong> or <strong>"Bye"</strong> when done</div>
         </div>
     </div>
 
-    <script src="/shared/js/suzi-voice-assistant.js"></script>
+    <script src="/shared/js/voice-assistant-advanced.js"></script>
     <script src="/shared/js/app.js"></script>
-
+    
     <?php if (isset($pageJS)): ?>
         <?php foreach ((array)$pageJS as $js): ?>
             <script src="<?php echo $js; ?>"></script>
@@ -434,17 +470,48 @@
 
     <script>
         let plusMenuOpen = false;
+        
         function togglePlusMenu() {
+            const menu = document.getElementById('plusMenu');
+            const btn = document.getElementById('plusBtn');
+            const backdrop = document.getElementById('menuBackdrop');
+            
             plusMenuOpen = !plusMenuOpen;
-            document.getElementById('plusMenu').classList.toggle('active', plusMenuOpen);
-            document.getElementById('plusBtn').classList.toggle('active', plusMenuOpen);
-            document.getElementById('menuBackdrop').classList.toggle('active', plusMenuOpen);
+            
+            if (plusMenuOpen) {
+                menu.classList.add('active');
+                btn.classList.add('active');
+                backdrop.classList.add('active');
+            } else {
+                menu.classList.remove('active');
+                btn.classList.remove('active');
+                backdrop.classList.remove('active');
+            }
         }
+        
         function closePlusMenu() {
             if (plusMenuOpen) togglePlusMenu();
         }
-        document.addEventListener('keydown', e => {
-            if (e.key === 'Escape') closePlusMenu();
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closePlusMenu();
+                const voiceModal = document.getElementById('voiceModal');
+                if (voiceModal && voiceModal.classList.contains('active')) {
+                    AdvancedVoiceAssistant.getInstance().closeModal();
+                }
+            }
+        });
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            document.body.classList.add('loaded');
+            const loader = document.getElementById('appLoader');
+            if (loader) {
+                setTimeout(() => {
+                    loader.style.opacity = '0';
+                    setTimeout(() => loader.style.display = 'none', 300);
+                }, 500);
+            }
         });
     </script>
 </body>
