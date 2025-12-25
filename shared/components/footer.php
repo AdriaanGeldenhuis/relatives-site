@@ -84,6 +84,29 @@
                     transform: scale(1.05);
                 }
             }
+
+            .mic-btn.processing {
+                animation: processingPulse 1s ease-in-out infinite;
+                background: linear-gradient(135deg, #f093fb, #f5576c);
+            }
+
+            @keyframes processingPulse {
+                0%, 100% {
+                    box-shadow: 0 10px 40px rgba(240, 147, 251, 0.5);
+                }
+                50% {
+                    box-shadow: 0 10px 60px rgba(240, 147, 251, 1), 0 0 30px rgba(240, 147, 251, 0.8);
+                }
+            }
+
+            .voice-status.listening .status-icon {
+                animation: statusIconPulse 1.2s ease-in-out infinite;
+            }
+
+            @keyframes statusIconPulse {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.15); }
+            }
             
             .footer-right {
                 display: flex;
@@ -380,7 +403,7 @@
         <div class="menu-backdrop" id="menuBackdrop" onclick="closePlusMenu()"></div>
         
         <div class="footer-container">
-            <button class="footer-btn mic-btn" id="micBtn" onclick="AdvancedVoiceAssistant.openModal()">
+            <button class="footer-btn mic-btn" id="micBtn" onclick="AdvancedVoiceAssistant.openModal()" aria-label="Voice Assistant">
                 🎤
             </button>
 
@@ -427,7 +450,7 @@
 
     <div class="voice-modal" id="voiceModal">
         <div class="voice-modal-content">
-            <button class="close-voice-modal" onclick="AdvancedVoiceAssistant.getInstance().closeModal()">✕</button>
+            <button class="close-voice-modal" onclick="AdvancedVoiceAssistant.closeModal()" aria-label="Close">✕</button>
             
             <div class="voice-status" id="voiceStatus">
                 <div class="status-icon" id="statusIcon">🎤</div>
@@ -440,7 +463,7 @@
             </div>
 
             <div class="voice-suggestions" id="voiceSuggestions">
-                <div class="suggestion-title">Try asking:</div>
+                <div class="suggestion-title">Try saying:</div>
                 <div class="suggestion-items">
                     <button onclick="AdvancedVoiceAssistant.getInstance().executeSuggestion('Add milk to shopping')" class="suggestion-btn">
                         🛒 "Add milk to shopping"
@@ -448,8 +471,8 @@
                     <button onclick="AdvancedVoiceAssistant.getInstance().executeSuggestion('What is the weather today')" class="suggestion-btn">
                         🌤️ "What's the weather today?"
                     </button>
-                    <button onclick="AdvancedVoiceAssistant.getInstance().executeSuggestion('Create an event tomorrow at 3pm')" class="suggestion-btn">
-                        📅 "Create an event tomorrow at 3pm"
+                    <button onclick="AdvancedVoiceAssistant.getInstance().executeSuggestion('Create a reminder for tomorrow at 3pm')" class="suggestion-btn">
+                        ⏰ "Remind me tomorrow at 3pm"
                     </button>
                     <button onclick="AdvancedVoiceAssistant.getInstance().executeSuggestion('Take a note: buy birthday cake')" class="suggestion-btn">
                         📝 "Take a note: buy birthday cake"
@@ -498,7 +521,7 @@
                 closePlusMenu();
                 const voiceModal = document.getElementById('voiceModal');
                 if (voiceModal && voiceModal.classList.contains('active')) {
-                    AdvancedVoiceAssistant.getInstance().closeModal();
+                    AdvancedVoiceAssistant.closeModal();
                 }
             }
         });
