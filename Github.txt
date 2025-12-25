@@ -1,0 +1,13 @@
+cd ~/public_html
+git pull
+
+
+cd C:\dev\premierauto-site
+git pull
+
+
+cd C:\dev\premierauto-site
+git status
+git add .
+git commit -m "Add auth section (login/register/reset)"
+git push
