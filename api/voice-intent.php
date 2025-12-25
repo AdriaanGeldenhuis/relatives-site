@@ -1,21 +1,22 @@
 <?php
 /**
  * ============================================
- * ADVANCED VOICE INTENT PROCESSOR v5.0
- * Complete Integration with All App Areas
+ * SUZI VOICE INTENT PROCESSOR v6.0
+ * Complete AI-powered voice command system
  * ============================================
  */
 
 header('Content-Type: application/json');
 require_once __DIR__ . '/../core/bootstrap.php';
 
+// Get input
 $input = json_decode(file_get_contents('php://input'), true);
 
 if (!isset($input['transcript']) || empty(trim($input['transcript']))) {
     echo json_encode([
         'intent' => 'error',
         'slots' => [],
-        'response_text' => 'No voice input detected'
+        'response_text' => 'I didn\'t hear anything. Could you try again?'
     ]);
     exit;
 }
@@ -24,10 +25,11 @@ $transcript = trim($input['transcript']);
 $currentPage = $input['page'] ?? '/';
 $conversation = $input['conversation'] ?? [];
 
-// Get user context if available
+// Get user context
 session_start();
 $userId = $_SESSION['user_id'] ?? null;
-$userContext = '';
+$userName = '';
+$familyId = null;
 
 if ($userId) {
     try {
@@ -35,204 +37,187 @@ if ($userId) {
         $stmt->execute([$userId]);
         $user = $stmt->fetch();
         if ($user) {
-            $userContext = "User: {$user['full_name']}, Family ID: {$user['family_id']}";
+            $userName = $user['full_name'];
+            $familyId = $user['family_id'];
         }
     } catch (Exception $e) {
         error_log('Voice user context error: ' . $e->getMessage());
     }
 }
 
+// Build user context string
+$userContext = $userName ? "The user's name is {$userName}." : '';
+
+// Get current date/time context
+$now = new DateTime('now', new DateTimeZone('Africa/Johannesburg'));
+$dateContext = "Current date: " . $now->format('l, F j, Y') . ". Current time: " . $now->format('g:i A') . ".";
+
 // OpenAI API Configuration
 $apiKey = getenv('OPENAI_API_KEY');
 $apiUrl = 'https://api.openai.com/v1/chat/completions';
 
-// Enhanced system prompt with ALL app areas
+if (!$apiKey) {
+    echo json_encode([
+        'intent' => 'error',
+        'slots' => [],
+        'response_text' => 'Voice assistant is not configured. Please contact support.'
+    ]);
+    exit;
+}
+
+// System prompt
 $systemPrompt = <<<PROMPT
-You are Suzi, the AI voice assistant for the Relatives family app. 
+You are Suzi, a friendly and helpful AI voice assistant for the Relatives family app.
 $userContext
+$dateContext
 
-Analyze voice commands and return ONLY valid JSON:
+You help families stay organized with shopping lists, notes, calendars, schedules, messages, weather, and location tracking.
 
+**RESPONSE FORMAT:**
+Always respond with ONLY a valid JSON object (no markdown, no explanation):
 {
   "intent": "intent_name",
   "slots": { ... },
-  "response_text": "Natural spoken response"
+  "response_text": "Your friendly spoken response"
 }
 
-**AVAILABLE INTENTS & AREAS:**
+**AVAILABLE INTENTS:**
 
-🏠 **NAVIGATION**
-- navigate: Go to any area
-  Slots: {"destination": "home|shopping|notes|calendar|schedule|weather|messages|tracking|notifications"}
-  Response: "Taking you to [area]"
+🏠 NAVIGATION
+- navigate: Go to any app area
+  slots: {"destination": "home|shopping|notes|calendar|schedule|weather|messages|tracking|notifications|help"}
 
-🛒 **SHOPPING**
+🛒 SHOPPING
 - add_shopping_item: Add item to shopping list
-  Slots: {"item": "milk", "quantity": "2L", "category": "dairy|meat|produce|bakery|pantry|frozen|snacks|beverages|household|other"}
-  Response: "Adding [item] to your shopping list"
+  slots: {"item": "item name", "quantity": "optional amount", "category": "dairy|meat|produce|bakery|pantry|frozen|snacks|beverages|household|other"}
+- view_shopping: Open shopping list
+- clear_bought: Clear purchased items
 
-- view_shopping: Show shopping list
-  Response: "Opening your shopping list"
+📝 NOTES
+- create_note: Create a new note
+  slots: {"title": "optional title", "content": "note content"}
+- search_notes: Search notes
+  slots: {"query": "search term"}
 
-- clear_bought: Remove bought items
-  Response: "Clearing all bought items"
-
-📝 **NOTES**
-- create_note: Make a new note
-  Slots: {"title": "optional", "content": "note text", "type": "text|voice"}
-  Response: "Creating note: [content]"
-
-- search_notes: Find notes
-  Slots: {"query": "search term"}
-  Response: "Searching notes for [query]"
-
-📅 **CALENDAR**
-- create_event: Add calendar event
-  Slots: {"title": "event name", "date": "YYYY-MM-DD", "time": "HH:MM", "duration": "1 hour"}
-  Response: "Creating event: [title] on [date]"
-
+📅 CALENDAR
+- create_event: Create calendar event
+  slots: {"title": "event name", "date": "YYYY-MM-DD or today/tomorrow/day_name", "time": "HH:MM"}
 - show_calendar: View calendar
-  Slots: {"date": "today|tomorrow|YYYY-MM-DD"}
-  Response: "Showing calendar for [date]"
+  slots: {"date": "YYYY-MM-DD or today/tomorrow"}
+- next_event: Show upcoming events
 
-- next_event: Show upcoming event
-  Response: "Your next event is..."
-
-⏰ **SCHEDULE**
-- create_schedule: Add scheduled task
-  Slots: {"title": "task", "date": "YYYY-MM-DD", "time": "HH:MM", "type": "study|work|todo"}
-  Response: "Scheduling [title] for [date]"
-
+⏰ SCHEDULE
+- create_schedule: Create a scheduled task/reminder
+  slots: {"title": "task name", "date": "YYYY-MM-DD", "time": "HH:MM", "type": "study|work|todo"}
 - show_schedule: View schedule
-  Slots: {"date": "today|tomorrow"}
-  Response: "Here's your schedule"
+  slots: {"date": "today|tomorrow|YYYY-MM-DD"}
 
-🌤️ **WEATHER**
-- get_weather_today: Current weather
-  Response: "The weather today is..."
-
+🌤️ WEATHER
+- get_weather_today: Today's weather
 - get_weather_tomorrow: Tomorrow's forecast
-  Response: "Tomorrow's weather will be..."
+- get_weather_week: Week forecast
 
-- get_weather_week: 7-day forecast
-  Response: "Here's the week ahead..."
-
-💬 **MESSAGES**
+💬 MESSAGES
 - send_message: Send family message
-  Slots: {"content": "message text", "to_user": "optional"}
-  Response: "Sending message to family"
-
+  slots: {"content": "message text"}
 - read_messages: View messages
-  Slots: {"filter": "unread|all"}
-  Response: "You have [count] messages"
 
-📍 **TRACKING**
-- show_location: Show family locations
-  Response: "Showing family locations"
+📍 TRACKING
+- show_location: Show all family locations
+- find_member: Find specific family member
+  slots: {"member_name": "name"}
 
-- find_member: Locate family member
-  Slots: {"member_name": "name"}
-  Response: "Locating [member]"
-
-🔔 **NOTIFICATIONS**
+🔔 NOTIFICATIONS
 - check_notifications: View notifications
-  Response: "You have [count] notifications"
+- mark_all_read: Mark all as read
 
-- mark_all_read: Clear notifications
-  Response: "Marking all as read"
-
-🤖 **SMART FEATURES**
-- get_stats: Show app statistics
-  Response: "Here are your family stats..."
-
-- get_suggestions: AI recommendations
-  Response: "Here are some suggestions..."
-
-- smalltalk: General conversation
-  Response: "Natural conversational response"
+💬 CONVERSATION
+- smalltalk: General chat, questions, jokes, facts
+  (for greetings, jokes, general knowledge, app help, etc.)
 
 **PARSING RULES:**
-1. Extract dates: "tomorrow", "next monday", "jan 15"
-2. Extract times: "3pm", "15:00", "at noon"
-3. Extract quantities: "2 liters", "500g", "3 items"
-4. Extract names: proper nouns for family members
-5. Infer category from item name (milk=dairy, bread=bakery)
+1. Dates: "today", "tomorrow", "monday", "next friday", "jan 15" → Convert to appropriate format
+2. Times: "3pm", "15:00", "noon", "morning" → Convert to HH:MM (24h)
+3. Categories: Infer from item (milk=dairy, bread=bakery, chicken=meat, apples=produce)
+4. Be flexible with phrasing - understand natural language
 
 **RESPONSE GUIDELINES:**
-- Be conversational and friendly
-- Confirm actions clearly
-- Ask for clarification if needed
-- Use emojis sparingly
+1. Be conversational, warm, and helpful
+2. Use the user's name occasionally if known
+3. Confirm actions clearly
+4. Keep responses concise but friendly (1-2 sentences)
+5. For smalltalk, be engaging and personable
+6. If something is unclear, ask for clarification naturally
 
 **EXAMPLES:**
 
-"add milk to shopping" → 
+User: "add eggs to shopping"
 {
   "intent": "add_shopping_item",
-  "slots": {"item": "milk", "category": "dairy"},
-  "response_text": "Adding milk to your shopping list! 🛒"
+  "slots": {"item": "eggs", "category": "dairy"},
+  "response_text": "I've added eggs to your shopping list!"
 }
 
-"what's the weather tomorrow" →
+User: "what's the weather like tomorrow"
 {
   "intent": "get_weather_tomorrow",
   "slots": {},
-  "response_text": "Let me check tomorrow's forecast for you..."
+  "response_text": "Let me check tomorrow's forecast for you."
 }
 
-"create an event birthday party saturday at 3pm" →
+User: "remind me to call mom tomorrow at 2pm"
 {
-  "intent": "create_event",
-  "slots": {"title": "birthday party", "date": "next_saturday", "time": "15:00"},
-  "response_text": "Creating event: Birthday Party on Saturday at 3 PM"
+  "intent": "create_schedule",
+  "slots": {"title": "Call mom", "date": "tomorrow", "time": "14:00", "type": "todo"},
+  "response_text": "I've set a reminder to call mom tomorrow at 2 PM."
 }
 
-"show me the calendar" →
-{
-  "intent": "show_calendar",
-  "slots": {"date": "today"},
-  "response_text": "Opening your calendar"
-}
-
-"send a message hi everyone" →
-{
-  "intent": "send_message",
-  "slots": {"content": "hi everyone"},
-  "response_text": "Sending message to your family"
-}
-
-"take a note buy groceries" →
-{
-  "intent": "create_note",
-  "slots": {"content": "buy groceries"},
-  "response_text": "I've noted: buy groceries"
-}
-
-"where is mom" →
+User: "where's dad"
 {
   "intent": "find_member",
-  "slots": {"member_name": "mom"},
-  "response_text": "Let me find mom's location..."
+  "slots": {"member_name": "dad"},
+  "response_text": "Let me find dad's location for you."
 }
 
-"go to shopping" →
+User: "tell me a joke"
 {
-  "intent": "navigate",
-  "slots": {"destination": "shopping"},
-  "response_text": "Taking you to shopping"
+  "intent": "smalltalk",
+  "slots": {},
+  "response_text": "Why don't scientists trust atoms? Because they make up everything!"
 }
 
-Return ONLY the JSON object. No markdown, no explanations.
+User: "what can you do"
+{
+  "intent": "smalltalk",
+  "slots": {},
+  "response_text": "I can help you with shopping lists, notes, calendar events, reminders, weather, messages, and finding your family members. Just ask!"
+}
+
+User: "hi suzi"
+{
+  "intent": "smalltalk",
+  "slots": {},
+  "response_text": "Hey there! What can I help you with?"
+}
+
+User: "thanks"
+{
+  "intent": "smalltalk",
+  "slots": {},
+  "response_text": "You're welcome! Anything else I can help with?"
+}
+
+Return ONLY the JSON object. No markdown code blocks. No explanations.
 PROMPT;
 
-// Build messages for OpenAI
+// Build messages array
 $messages = [
     ['role' => 'system', 'content' => $systemPrompt]
 ];
 
-// Add conversation history (last 3 exchanges)
+// Add conversation history (last 4 exchanges)
 if (!empty($conversation)) {
-    foreach (array_slice($conversation, -3) as $msg) {
+    foreach (array_slice($conversation, -4) as $msg) {
         $messages[] = $msg;
     }
 }
@@ -240,80 +225,183 @@ if (!empty($conversation)) {
 // Add current command
 $messages[] = ['role' => 'user', 'content' => $transcript];
 
+// API request data
 $data = [
     'model' => 'gpt-4o-mini',
     'messages' => $messages,
     'temperature' => 0.7,
-    'max_tokens' => 400
+    'max_tokens' => 500
 ];
 
+// Make API call
 $ch = curl_init($apiUrl);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    'Content-Type: application/json',
-    'Authorization: Bearer ' . $apiKey
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST => true,
+    CURLOPT_POSTFIELDS => json_encode($data),
+    CURLOPT_HTTPHEADER => [
+        'Content-Type: application/json',
+        'Authorization: Bearer ' . $apiKey
+    ],
+    CURLOPT_TIMEOUT => 15
 ]);
 
 $response = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$curlError = curl_error($ch);
 curl_close($ch);
 
-if ($httpCode !== 200) {
+// Handle errors
+if ($curlError) {
+    error_log('Voice API curl error: ' . $curlError);
     echo json_encode([
         'intent' => 'error',
         'slots' => [],
-        'response_text' => 'Sorry, I had trouble processing that. Please try again.'
+        'response_text' => 'I\'m having trouble connecting. Please try again.'
     ]);
     exit;
 }
 
+if ($httpCode !== 200) {
+    error_log('Voice API HTTP error: ' . $httpCode . ' - ' . $response);
+    echo json_encode([
+        'intent' => 'error',
+        'slots' => [],
+        'response_text' => 'Something went wrong. Could you try that again?'
+    ]);
+    exit;
+}
+
+// Parse response
 $apiResponse = json_decode($response, true);
 
 if (!isset($apiResponse['choices'][0]['message']['content'])) {
     echo json_encode([
-        'intent' => 'error',
+        'intent' => 'smalltalk',
         'slots' => [],
-        'response_text' => 'Something went wrong. Could you repeat that?'
+        'response_text' => 'I\'m not sure I understood that. Could you rephrase?'
     ]);
     exit;
 }
 
 $intentJson = trim($apiResponse['choices'][0]['message']['content']);
 
-// Remove markdown code blocks
-$intentJson = preg_replace('/```json\s*/', '', $intentJson);
-$intentJson = preg_replace('/```\s*/', '', $intentJson);
+// Clean up potential markdown formatting
+$intentJson = preg_replace('/^```json\s*/', '', $intentJson);
+$intentJson = preg_replace('/^```\s*/', '', $intentJson);
+$intentJson = preg_replace('/\s*```$/', '', $intentJson);
+$intentJson = trim($intentJson);
 
+// Parse JSON
 $result = json_decode($intentJson, true);
 
 if (!$result || !isset($result['intent'])) {
-    echo json_encode([
-        'intent' => 'smalltalk',
-        'slots' => [],
-        'response_text' => 'I didn\'t quite catch that. Could you rephrase?'
-    ]);
-    exit;
+    // Try to extract JSON from response if wrapped in text
+    if (preg_match('/\{[^{}]*"intent"[^{}]*\}/s', $intentJson, $matches)) {
+        $result = json_decode($matches[0], true);
+    }
+    
+    if (!$result || !isset($result['intent'])) {
+        echo json_encode([
+            'intent' => 'smalltalk',
+            'slots' => [],
+            'response_text' => 'I didn\'t quite catch that. What would you like me to do?'
+        ]);
+        exit;
+    }
+}
+
+// Ensure slots exist
+if (!isset($result['slots'])) {
+    $result['slots'] = [];
+}
+
+// Process date slots
+if (isset($result['slots']['date'])) {
+    $result['slots']['date'] = processDateString($result['slots']['date']);
 }
 
 // Log voice command for analytics
 if ($userId) {
     try {
-        $stmt = $db->prepare("
-            INSERT INTO voice_command_log 
-            (user_id, transcript, intent, slots, created_at)
-            VALUES (?, ?, ?, ?, NOW())
-        ");
-        $stmt->execute([
-            $userId,
-            $transcript,
-            $result['intent'],
-            json_encode($result['slots'] ?? [])
-        ]);
+        // Check if table exists first
+        $tableCheck = $db->query("SHOW TABLES LIKE 'voice_command_log'");
+        if ($tableCheck->rowCount() > 0) {
+            $stmt = $db->prepare("
+                INSERT INTO voice_command_log 
+                (user_id, transcript, intent, slots, response_text, created_at)
+                VALUES (?, ?, ?, ?, ?, NOW())
+            ");
+            $stmt->execute([
+                $userId,
+                $transcript,
+                $result['intent'],
+                json_encode($result['slots']),
+                $result['response_text'] ?? ''
+            ]);
+        }
     } catch (Exception $e) {
+        // Non-critical error, just log it
         error_log('Voice log error: ' . $e->getMessage());
     }
 }
 
+// Return result
 echo json_encode($result);
+
+/**
+ * Process date strings into YYYY-MM-DD format
+ */
+function processDateString($dateStr) {
+    if (!$dateStr) return date('Y-m-d');
+    
+    $dateStr = strtolower(trim($dateStr));
+    $today = new DateTime('now', new DateTimeZone('Africa/Johannesburg'));
+    
+    // Handle common words
+    if ($dateStr === 'today') {
+        return $today->format('Y-m-d');
+    }
+    
+    if ($dateStr === 'tomorrow') {
+        $today->modify('+1 day');
+        return $today->format('Y-m-d');
+    }
+    
+    // Handle day names
+    $days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    
+    // Check for "next [day]"
+    if (strpos($dateStr, 'next ') === 0) {
+        $dayName = str_replace('next ', '', $dateStr);
+        if (in_array($dayName, $days)) {
+            $today->modify('next ' . $dayName);
+            return $today->format('Y-m-d');
+        }
+    }
+    
+    // Check for day name only
+    if (in_array($dateStr, $days)) {
+        $currentDayIndex = (int)$today->format('w');
+        $targetDayIndex = array_search($dateStr, $days);
+        
+        $daysUntil = $targetDayIndex - $currentDayIndex;
+        if ($daysUntil <= 0) $daysUntil += 7;
+        
+        $today->modify("+{$daysUntil} days");
+        return $today->format('Y-m-d');
+    }
+    
+    // If already in YYYY-MM-DD format
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateStr)) {
+        return $dateStr;
+    }
+    
+    // Try to parse other formats
+    try {
+        $parsed = new DateTime($dateStr, new DateTimeZone('Africa/Johannesburg'));
+        return $parsed->format('Y-m-d');
+    } catch (Exception $e) {
+        return date('Y-m-d');
+    }
+}
