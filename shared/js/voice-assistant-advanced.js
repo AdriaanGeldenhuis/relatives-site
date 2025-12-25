@@ -188,7 +188,6 @@ class AdvancedVoiceAssistant {
         instance.handleTranscript((text || '').trim());
     }
 
-
     static onNativeError(code, message) {
         const instance = AdvancedVoiceAssistant.getInstance();
         instance.isListening = false;
@@ -196,68 +195,39 @@ class AdvancedVoiceAssistant {
         if (instance.dom.micBtn) instance.dom.micBtn.classList.remove('listening');
         if (instance.dom.voiceStatus) instance.dom.voiceStatus.classList.remove('listening');
         
-        // Silent errors - just restart listening without showing error
-        const silentErrors = ['no-speech', 'no-match', 'busy', 'client', 'audio'];
+        console.log('🎤 Recognition issue:', code, message);
         
-        if (silentErrors.includes(code)) {
-            console.log('🎤 Minor error, restarting:', code);
-            setTimeout(() => {
-                if (instance.modalOpen && !instance.processingCommand && !instance.isSpeaking) {
-                    instance.startListening();
-                }
-            }, 500);
+        // Only show error for permission denied - everything else just restart silently
+        if (code === 'not-allowed') {
+            instance.updateStatus('❌', 'Microphone blocked', 'Enable in settings');
             return;
         }
         
-        // Real errors - show to user
-        let userMessage = 'Something went wrong';
-        let subtext = 'Please try again';
-        
-        switch (code) {
-            case 'network':
-            case 'network-timeout':
-                userMessage = 'Network error';
-                subtext = 'Check your connection';
-                break;
-            case 'not-allowed':
-                userMessage = 'Microphone blocked';
-                subtext = 'Enable in settings';
-                break;
-            default:
-                userMessage = 'Error';
-                subtext = 'Tap to try again';
-        }
-        
-        instance.updateStatus('❌', userMessage, subtext);
-        
-        if (code !== 'not-allowed') {
-            setTimeout(() => {
-                if (instance.modalOpen && !instance.processingCommand) {
-                    instance.startListening();
-                }
-            }, 2000);
-        }
+        // Silent restart - no error shown
+        setTimeout(() => {
+            if (instance.modalOpen && !instance.processingCommand && !instance.isSpeaking) {
+                instance.startListening();
+            }
+        }, 800);
     }
 
-    // Native TTS callbacks (called by Android)
+    // Called by Android when TTS starts
     static onNativeSpeakStart() {
         const instance = AdvancedVoiceAssistant.getInstance();
         instance.isSpeaking = true;
-        instance.updateStatus('💬', 'Speaking...', '');
     }
 
+    // Called by Android when TTS finishes
     static onNativeSpeakDone() {
         const instance = AdvancedVoiceAssistant.getInstance();
         instance.isSpeaking = false;
         
-        // After speaking, continue listening
-        if (instance.modalOpen && !instance.processingCommand) {
-            setTimeout(() => {
-                if (instance.modalOpen && !instance.processingCommand && !instance.isSpeaking) {
-                    instance.startListening();
-                }
-            }, 500);
-        }
+        // Start listening after TTS with delay
+        setTimeout(() => {
+            if (instance.modalOpen && !instance.processingCommand && !instance.isSpeaking) {
+                instance.startListening();
+            }
+        }, 800);
     }
 
     // ==================== LISTENING ====================
@@ -416,17 +386,13 @@ class AdvancedVoiceAssistant {
     handleTranscript(transcript) {
         if (!transcript) return;
 
-        // Stop word detection - close conversation
-        const stopWords = ['stop', 'bye', 'goodbye', 'cancel', 'close', 'exit', 'quit', 'thanks', 'thank you'];
-        const lowerTranscript = transcript.toLowerCase();
-        for (const word of stopWords) {
-            if (lowerTranscript.includes(word)) {
-                this.updateTranscript(transcript);
-                this.speak('Goodbye! Talk to you later.', () => {
-                    this.closeModal();
-                });
-                return;
-            }
+        // Stop words close the conversation
+        const stopWords = ['stop', 'bye', 'goodbye', 'cancel', 'exit', 'quit'];
+        const lower = transcript.toLowerCase();
+        if (stopWords.some(w => lower.includes(w))) {
+            this.updateTranscript(transcript);
+            this.speak('Goodbye!', () => this.closeModal());
+            return;
         }
 
         this.updateTranscript(transcript);
@@ -857,17 +823,9 @@ class AdvancedVoiceAssistant {
     speak(text, onEndCallback = null, rate = 1.1, pitch = 1.0) {
         if (window.AndroidVoice && typeof window.AndroidVoice.speak === 'function') {
             try {
+                this.isSpeaking = true;
                 window.AndroidVoice.speak(text);
-                
-                if (onEndCallback) {
-                    const wordCount = text.split(' ').length;
-                    const estimatedDuration = (wordCount / 150) * 60 * 1000;
-                    const safeDuration = Math.max(1000, Math.min(estimatedDuration, 10000));
-                    
-                    setTimeout(() => {
-                        onEndCallback();
-                    }, safeDuration);
-                }
+                // onNativeSpeakDone will handle restart - no timeout needed
                 return;
             } catch (error) {
                 console.error('❌ Native speak failed', error);
