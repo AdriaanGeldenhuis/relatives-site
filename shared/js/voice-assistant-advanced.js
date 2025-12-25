@@ -227,6 +227,29 @@ class AdvancedVoiceAssistant {
         }
     }
 
+
+    static onNativeSpeakStart() {
+        const instance = AdvancedVoiceAssistant.getInstance();
+        instance.isSpeaking = true;
+        instance.updateStatus('💬', 'Speaking...', '');
+        console.log('📱 Native TTS started');
+    }
+
+    static onNativeSpeakDone() {
+        const instance = AdvancedVoiceAssistant.getInstance();
+        instance.isSpeaking = false;
+        console.log('📱 Native TTS finished');
+        
+        // After speaking, start listening again if modal is open
+        if (instance.modalOpen && !instance.processingCommand) {
+            setTimeout(() => {
+                if (instance.modalOpen && !instance.processingCommand && !instance.isSpeaking) {
+                    instance.startListening();
+                }
+            }, 500);
+        }
+    }
+
     // ==================== LISTENING ====================
     
     startNativeListening() {
