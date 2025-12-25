@@ -1,25 +1,26 @@
 /**
- * SUZI VOICE ASSISTANT v7.0
- * Complete rewrite - Simple, Reliable, Mobile-First
+ * SUZI VOICE ASSISTANT v7.2
+ * Full Native Android Support
  */
 
 (function() {
     'use strict';
 
-    // ============ CONFIGURATION ============
+    console.log('🎤 Suzi v7.2 loading...');
+
+    // ============ CONFIG ============
     const CONFIG = {
         lang: 'en-US',
-        ttsRate: 1.0,
-        ttsPitch: 1.0,
-        listenTimeout: 8000,      // Max time to listen before auto-retry
-        ttsWordsPerSecond: 2.5,   // For estimating speech duration
-        minTtsDuration: 1500,     // Minimum TTS wait time
-        maxTtsDuration: 10000,    // Maximum TTS wait time
-        restartDelay: 600,        // Delay before restarting listener
+        listenTimeout: 10000,
+        ttsWordsPerSec: 2.5,
+        minTtsDuration: 1500,
+        maxTtsDuration: 12000,
+        restartDelay: 800,
         stopWords: ['stop', 'bye', 'goodbye', 'cancel', 'close', 'exit', 'quit']
     };
 
     // ============ STATE ============
+    let isNativeApp = false;
     let state = {
         isOpen: false,
         isListening: false,
@@ -29,14 +30,19 @@
 
     let recognition = null;
     let synthesis = window.speechSynthesis;
-    let currentUtterance = null;
     let listenTimer = null;
     let ttsTimer = null;
     let conversation = [];
-
-    // ============ DOM ELEMENTS ============
     let dom = {};
 
+    // ============ NATIVE APP CHECK ============
+    function checkNativeApp() {
+        isNativeApp = !!(window.AndroidVoice && typeof window.AndroidVoice.startListening === 'function');
+        console.log('🔍 Native app check:', isNativeApp);
+        return isNativeApp;
+    }
+
+    // ============ DOM ============
     function cacheDom() {
         dom = {
             modal: document.getElementById('suziModal'),
@@ -50,128 +56,110 @@
             suggestions: document.getElementById('suziSuggestions'),
             closeBtn: document.getElementById('suziCloseBtn'),
             micBtn: document.getElementById('micBtn'),
-            tapToSpeak: document.getElementById('suziTapToSpeak')
+            tapBtn: document.getElementById('suziTapToSpeak')
         };
+        console.log('📦 DOM cached');
     }
 
-    // ============ INITIALIZATION ============
+    // ============ INIT ============
     function init() {
-        console.log('🎤 Suzi v7.0 initializing...');
+        console.log('🚀 Suzi init starting...');
         
+        checkNativeApp();
         cacheDom();
-        setupRecognition();
-        setupEventListeners();
         
-        console.log('✅ Suzi ready');
+        if (!isNativeApp) {
+            setupWebRecognition();
+        }
+        
+        setupEvents();
+        
+        console.log('✅ Suzi v7.2 ready!');
+        console.log('📱 isNativeApp:', isNativeApp);
     }
 
-    function setupRecognition() {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        
-        if (!SpeechRecognition) {
-            console.warn('Speech recognition not supported');
+    function setupWebRecognition() {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) {
+            console.warn('❌ No web speech recognition');
             return;
         }
 
-        recognition = new SpeechRecognition();
+        recognition = new SR();
         recognition.lang = CONFIG.lang;
         recognition.continuous = false;
         recognition.interimResults = true;
-        recognition.maxAlternatives = 1;
 
         recognition.onstart = function() {
-            console.log('🎤 Listening started');
+            console.log('🌐 Web recognition started');
             state.isListening = true;
             showListening();
         };
 
-        recognition.onresult = function(event) {
-            let final = '';
-            let interim = '';
-
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                if (event.results[i].isFinal) {
-                    final += event.results[i][0].transcript;
+        recognition.onresult = function(e) {
+            let final = '', interim = '';
+            for (let i = e.resultIndex; i < e.results.length; i++) {
+                if (e.results[i].isFinal) {
+                    final += e.results[i][0].transcript;
                 } else {
-                    interim += event.results[i][0].transcript;
+                    interim += e.results[i][0].transcript;
                 }
             }
-
-            if (interim) {
-                updateTranscript(interim, true);
-            }
-
+            if (interim) updateTranscript(interim, true);
             if (final) {
+                console.log('🌐 Web final transcript:', final);
                 clearTimeout(listenTimer);
                 state.isListening = false;
-                handleUserSpeech(final.trim());
+                handleSpeech(final.trim());
             }
         };
 
-        recognition.onerror = function(event) {
-            console.log('🎤 Error:', event.error);
+        recognition.onerror = function(e) {
+            console.log('🌐 Web error:', e.error);
             state.isListening = false;
-            
-            if (event.error === 'not-allowed') {
-                showError('Microphone blocked', 'Allow microphone access');
-            } else if (event.error === 'no-speech') {
-                // Just restart
-                if (state.isOpen && !state.isSpeaking && !state.isProcessing) {
-                    scheduleRestart();
-                }
-            } else {
+            if (e.error === 'not-allowed') {
+                showError('Mic blocked', 'Allow microphone');
+            } else if (state.isOpen && !state.isSpeaking && !state.isProcessing) {
                 scheduleRestart();
             }
         };
 
         recognition.onend = function() {
-            console.log('🎤 Listening ended');
+            console.log('🌐 Web recognition ended');
             state.isListening = false;
-            
             if (state.isOpen && !state.isSpeaking && !state.isProcessing) {
                 scheduleRestart();
             }
         };
+        
+        console.log('🌐 Web recognition setup done');
     }
 
-    function setupEventListeners() {
-        // Mic button opens Suzi
+    function setupEvents() {
         if (dom.micBtn) {
-            dom.micBtn.addEventListener('click', open);
+            dom.micBtn.onclick = openModal;
+            console.log('🔘 Mic button bound');
         }
-
-        // Close button
-        if (dom.closeBtn) {
-            dom.closeBtn.addEventListener('click', close);
-        }
-
-        // Overlay click closes
-        if (dom.overlay) {
-            dom.overlay.addEventListener('click', close);
-        }
-
-        // Tap to speak button
-        if (dom.tapToSpeak) {
-            dom.tapToSpeak.addEventListener('click', function() {
+        if (dom.closeBtn) dom.closeBtn.onclick = closeModal;
+        if (dom.overlay) dom.overlay.onclick = closeModal;
+        if (dom.tapBtn) {
+            dom.tapBtn.onclick = function() {
+                console.log('👆 Tap to speak pressed');
                 if (!state.isListening && !state.isSpeaking && !state.isProcessing) {
                     startListening();
                 }
-            });
+            };
         }
-
-        // Escape key
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && state.isOpen) {
-                close();
-            }
+            if (e.key === 'Escape' && state.isOpen) closeModal();
         });
     }
 
-    // ============ MODAL CONTROL ============
-    function open() {
+    // ============ MODAL ============
+    function openModal() {
         if (state.isOpen) return;
+        console.log('📱 Opening modal...');
         
-        console.log('📱 Opening Suzi');
         state.isOpen = true;
         conversation = [];
 
@@ -179,34 +167,25 @@
             dom.modal.classList.add('active');
             document.body.style.overflow = 'hidden';
         }
+        if (dom.micBtn) dom.micBtn.classList.add('active');
 
-        if (dom.micBtn) {
-            dom.micBtn.classList.add('active');
-        }
-
-        // Show greeting
         showGreeting();
         updateTranscript('');
         showSuggestions(true);
 
-        // Say hello then listen
-        const greetings = [
-            "Hi! How can I help?",
-            "Hey! What can I do for you?",
-            "Hello! I'm listening."
-        ];
-        const greeting = greetings[Math.floor(Math.random() * greetings.length)];
+        const greetings = ["Hi! How can I help?", "Hey! What can I do?", "Hello!"];
+        const g = greetings[Math.floor(Math.random() * greetings.length)];
 
-        speak(greeting, function() {
+        speak(g, function() {
+            console.log('🔊 Greeting done, starting listen...');
             startListening();
         });
     }
 
-    function close() {
+    function closeModal() {
         if (!state.isOpen) return;
-        
-        console.log('📱 Closing Suzi');
-        
+        console.log('📱 Closing modal');
+
         stopListening();
         stopSpeaking();
         clearTimeout(listenTimer);
@@ -221,140 +200,219 @@
             dom.modal.classList.remove('active');
             document.body.style.overflow = '';
         }
-
-        if (dom.micBtn) {
-            dom.micBtn.classList.remove('active', 'listening');
-        }
+        if (dom.micBtn) dom.micBtn.classList.remove('active', 'listening');
     }
 
     // ============ LISTENING ============
     function startListening() {
-        if (!state.isOpen || state.isListening || state.isSpeaking || state.isProcessing) {
-            return;
-        }
-
-        if (!recognition) {
-            showError('Not supported', 'Speech recognition unavailable');
-            return;
-        }
-
-        console.log('🎤 Starting listener...');
+        console.log('🎤 startListening called');
+        console.log('   state:', JSON.stringify(state));
         
-        try {
-            recognition.start();
-            
-            // Safety timeout - if nothing happens, restart
-            listenTimer = setTimeout(function() {
-                if (state.isListening) {
-                    console.log('⏰ Listen timeout');
-                    stopListening();
+        if (!state.isOpen) {
+            console.log('   ❌ Modal not open');
+            return;
+        }
+        if (state.isListening) {
+            console.log('   ❌ Already listening');
+            return;
+        }
+        if (state.isSpeaking) {
+            console.log('   ❌ Still speaking');
+            return;
+        }
+        if (state.isProcessing) {
+            console.log('   ❌ Still processing');
+            return;
+        }
+
+        clearTimeout(listenTimer);
+        showListening();
+
+        if (isNativeApp) {
+            console.log('📱 Calling AndroidVoice.startListening()...');
+            try {
+                window.AndroidVoice.startListening();
+                state.isListening = true;
+                console.log('📱 ✅ AndroidVoice.startListening() called');
+            } catch (e) {
+                console.error('📱 ❌ AndroidVoice error:', e);
+                showError('Mic error', 'Try again');
+            }
+        } else {
+            console.log('🌐 Starting web recognition...');
+            if (!recognition) {
+                showError('Not supported', 'Use Chrome');
+                return;
+            }
+            try {
+                recognition.start();
+                console.log('🌐 ✅ recognition.start() called');
+            } catch (e) {
+                console.log('🌐 Start error:', e.name);
+                if (e.name === 'InvalidStateError') {
+                    try { recognition.stop(); } catch(e2) {}
+                    setTimeout(startListening, 300);
+                }
+            }
+        }
+
+        // Safety timeout
+        listenTimer = setTimeout(function() {
+            console.log('⏰ Listen timeout fired');
+            if (state.isListening) {
+                stopListening();
+                if (state.isOpen && !state.isSpeaking && !state.isProcessing) {
                     scheduleRestart();
                 }
-            }, CONFIG.listenTimeout);
-            
-        } catch (e) {
-            console.log('Start error:', e.message);
-            // Already running, try stopping first
-            try { recognition.stop(); } catch(e2) {}
-            setTimeout(startListening, 300);
-        }
+            }
+        }, CONFIG.listenTimeout);
     }
 
     function stopListening() {
+        console.log('🛑 stopListening called');
         clearTimeout(listenTimer);
-        
-        if (recognition) {
-            try { recognition.abort(); } catch(e) {}
+
+        if (isNativeApp) {
+            try {
+                if (window.AndroidVoice && window.AndroidVoice.stopListening) {
+                    window.AndroidVoice.stopListening();
+                }
+            } catch (e) {}
+        } else {
+            if (recognition) {
+                try { recognition.abort(); } catch (e) {}
+            }
         }
-        
+
         state.isListening = false;
+        if (dom.micBtn) dom.micBtn.classList.remove('listening');
     }
 
     function scheduleRestart() {
+        console.log('🔄 scheduleRestart called');
         clearTimeout(listenTimer);
         
         if (!state.isOpen || state.isSpeaking || state.isProcessing) {
+            console.log('   ❌ Cannot restart:', { isOpen: state.isOpen, isSpeaking: state.isSpeaking, isProcessing: state.isProcessing });
             return;
         }
 
         listenTimer = setTimeout(function() {
+            console.log('🔄 Restart timer fired');
             if (state.isOpen && !state.isSpeaking && !state.isProcessing && !state.isListening) {
                 startListening();
             }
         }, CONFIG.restartDelay);
     }
 
+    // ============ NATIVE CALLBACKS ============
+    // Called by Android WebView
+    
+    function nativeListeningStart() {
+        console.log('📱 NATIVE CALLBACK: ListeningStart');
+        state.isListening = true;
+        showListening();
+    }
+
+    function nativeListeningStop() {
+        console.log('📱 NATIVE CALLBACK: ListeningStop');
+        state.isListening = false;
+        if (state.isOpen && !state.isSpeaking && !state.isProcessing) {
+            scheduleRestart();
+        }
+    }
+
+    function nativeTranscript(text) {
+        console.log('📱 NATIVE CALLBACK: Transcript received:', text);
+        clearTimeout(listenTimer);
+        state.isListening = false;
+        
+        if (text && text.trim()) {
+            handleSpeech(text.trim());
+        } else {
+            console.log('📱 Empty transcript, restarting...');
+            scheduleRestart();
+        }
+    }
+
+    function nativeError(code, message) {
+        console.log('📱 NATIVE CALLBACK: Error:', code, message);
+        state.isListening = false;
+
+        if (code === 'not-allowed') {
+            showError('Mic blocked', 'Check permissions');
+        } else {
+            scheduleRestart();
+        }
+    }
+
     // ============ SPEECH HANDLING ============
-    function handleUserSpeech(text) {
+    function handleSpeech(text) {
+        console.log('💬 handleSpeech:', text);
+        
         if (!text) {
+            console.log('   Empty text, restarting');
             scheduleRestart();
             return;
         }
 
-        console.log('👤 User said:', text);
         updateTranscript(text, false);
         showSuggestions(false);
 
-        // Check for stop words
+        // Check stop words
         const lower = text.toLowerCase();
-        for (let word of CONFIG.stopWords) {
-            if (lower.includes(word)) {
+        for (let w of CONFIG.stopWords) {
+            if (lower.includes(w)) {
+                console.log('   Stop word detected:', w);
                 sayGoodbye();
                 return;
             }
         }
 
-        // Process command
         processCommand(text);
     }
 
     function sayGoodbye() {
-        const goodbyes = ["Goodbye!", "Bye!", "See you later!", "Take care!"];
-        const bye = goodbyes[Math.floor(Math.random() * goodbyes.length)];
-        
-        showSuccess('Goodbye!', bye);
-        speak(bye, function() {
-            setTimeout(close, 300);
+        const byes = ["Goodbye!", "Bye!", "See you!", "Take care!"];
+        const b = byes[Math.floor(Math.random() * byes.length)];
+        showSuccess('Goodbye!', b);
+        speak(b, function() {
+            setTimeout(closeModal, 300);
         });
     }
 
     // ============ COMMAND PROCESSING ============
-    async function processCommand(command) {
+    async function processCommand(cmd) {
+        console.log('⚙️ processCommand:', cmd);
         state.isProcessing = true;
         showThinking();
 
         try {
-            const response = await fetch('/api/voice-intent.php', {
+            const resp = await fetch('/api/voice-intent.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    transcript: command,
+                    transcript: cmd,
                     page: window.location.pathname,
                     conversation: conversation
                 })
             });
 
-            const data = await response.json();
-            console.log('🤖 Response:', data);
+            const data = await resp.json();
+            console.log('🤖 API response:', data);
 
-            if (!data || !data.intent) {
-                throw new Error('Bad response');
-            }
+            if (!data || !data.intent) throw new Error('Bad response');
 
-            // Save to conversation
-            conversation.push({ role: 'user', content: command });
+            conversation.push({ role: 'user', content: cmd });
             conversation.push({ role: 'assistant', content: data.response_text });
-            if (conversation.length > 10) {
-                conversation = conversation.slice(-10);
-            }
+            if (conversation.length > 10) conversation = conversation.slice(-10);
 
-            // Handle response
             await handleIntent(data);
 
         } catch (err) {
-            console.error('Process error:', err);
+            console.error('❌ Process error:', err);
             showError('Oops', 'Something went wrong');
-            speak("Sorry, something went wrong. Try again?", function() {
+            speak("Sorry, try again?", function() {
                 state.isProcessing = false;
                 scheduleRestart();
             });
@@ -363,210 +421,147 @@
 
     async function handleIntent(data) {
         const { intent, slots = {}, response_text } = data;
+        console.log('🎯 handleIntent:', intent, slots);
         
         showSuccess('Got it!', response_text);
 
-        // Intents that navigate away
         const navIntents = [
             'navigate', 'add_shopping_item', 'create_event', 'create_schedule',
             'create_note', 'view_shopping', 'show_calendar', 'show_schedule',
             'show_location', 'find_member', 'read_messages', 'check_notifications',
             'get_weather_today', 'get_weather_tomorrow', 'get_weather_week'
         ];
+        const willNav = navIntents.includes(intent);
 
-        const willNavigate = navIntents.includes(intent);
-
-        // Speak response
         speak(response_text, function() {
             state.isProcessing = false;
-
-            if (willNavigate) {
-                executeAction(intent, slots);
+            if (willNav) {
+                doAction(intent, slots);
             } else {
                 scheduleRestart();
             }
         });
 
-        // Do action immediately if not navigating
-        if (!willNavigate && intent !== 'smalltalk') {
-            executeAction(intent, slots);
+        if (!willNav && intent !== 'smalltalk') {
+            doAction(intent, slots);
         }
     }
 
-    function executeAction(intent, slots) {
+    function doAction(intent, slots) {
+        console.log('🚀 doAction:', intent);
+        
+        const paths = {
+            home: '/home/', shopping: '/shopping/', notes: '/notes/',
+            calendar: '/calendar/', schedule: '/schedule/', weather: '/weather/',
+            messages: '/messages/', tracking: '/tracking/', notifications: '/notifications/'
+        };
+
         switch (intent) {
             case 'navigate':
-                goTo(getPath(slots.destination));
+                goTo(paths[slots.destination] || '/home/');
                 break;
-
             case 'add_shopping_item':
-                addToShopping(slots.item, slots.quantity, slots.category);
+                addShopping(slots.item, slots.quantity, slots.category);
                 break;
-
             case 'view_shopping':
                 goTo('/shopping/');
                 break;
-
             case 'create_note':
-                let noteUrl = '/notes/?new=1';
-                if (slots.content) noteUrl += '&content=' + encodeURIComponent(slots.content);
-                goTo(noteUrl);
+                let nUrl = '/notes/?new=1';
+                if (slots.content) nUrl += '&content=' + encodeURIComponent(slots.content);
+                goTo(nUrl);
                 break;
-
             case 'create_event':
-                let eventUrl = '/calendar/?new=1';
-                if (slots.title) eventUrl += '&title=' + encodeURIComponent(slots.title);
-                if (slots.date) eventUrl += '&date=' + formatDate(slots.date);
-                if (slots.time) eventUrl += '&time=' + slots.time;
-                goTo(eventUrl);
+                let eUrl = '/calendar/?new=1';
+                if (slots.title) eUrl += '&title=' + encodeURIComponent(slots.title);
+                if (slots.date) eUrl += '&date=' + fmtDate(slots.date);
+                if (slots.time) eUrl += '&time=' + slots.time;
+                goTo(eUrl);
                 break;
-
             case 'create_schedule':
-                let schedUrl = '/schedule/?new=1';
-                if (slots.title) schedUrl += '&title=' + encodeURIComponent(slots.title);
-                if (slots.date) schedUrl += '&date=' + formatDate(slots.date);
-                if (slots.time) schedUrl += '&time=' + slots.time;
-                goTo(schedUrl);
+                let sUrl = '/schedule/?new=1';
+                if (slots.title) sUrl += '&title=' + encodeURIComponent(slots.title);
+                if (slots.date) sUrl += '&date=' + fmtDate(slots.date);
+                if (slots.time) sUrl += '&time=' + slots.time;
+                goTo(sUrl);
                 break;
-
             case 'show_calendar':
-                goTo('/calendar/?date=' + formatDate(slots.date || 'today'));
+                goTo('/calendar/?date=' + fmtDate(slots.date || 'today'));
                 break;
-
             case 'show_schedule':
-                goTo('/schedule/?date=' + formatDate(slots.date || 'today'));
+                goTo('/schedule/?date=' + fmtDate(slots.date || 'today'));
                 break;
-
             case 'get_weather_today':
             case 'get_weather_tomorrow':
             case 'get_weather_week':
                 goTo('/weather/');
                 break;
-
             case 'send_message':
-                sendMessage(slots.content);
+                sendMsg(slots.content);
                 break;
-
             case 'read_messages':
                 goTo('/messages/');
                 break;
-
             case 'show_location':
                 goTo('/tracking/');
                 break;
-
             case 'find_member':
                 goTo('/tracking/?search=' + encodeURIComponent(slots.member_name || ''));
                 break;
-
             case 'check_notifications':
                 goTo('/notifications/');
-                break;
-
-            case 'clear_bought':
-                clearBought();
-                break;
-
-            case 'mark_all_read':
-                markNotificationsRead();
                 break;
         }
     }
 
-    // ============ ACTIONS ============
     function goTo(url) {
+        console.log('🧭 Navigating to:', url);
         setTimeout(function() {
-            close();
+            closeModal();
             window.location.href = url;
         }, 1500);
     }
 
-    function getPath(dest) {
-        const paths = {
-            home: '/home/',
-            shopping: '/shopping/',
-            notes: '/notes/',
-            calendar: '/calendar/',
-            schedule: '/schedule/',
-            weather: '/weather/',
-            messages: '/messages/',
-            tracking: '/tracking/',
-            notifications: '/notifications/',
-            help: '/help/'
-        };
-        return paths[dest] || '/home/';
-    }
-
-    function formatDate(str) {
-        if (!str) return new Date().toISOString().split('T')[0];
-        
-        const s = str.toLowerCase();
-        const today = new Date();
-
-        if (s === 'today') {
-            return today.toISOString().split('T')[0];
+    function fmtDate(s) {
+        if (!s) return new Date().toISOString().split('T')[0];
+        const d = new Date();
+        const l = (s + '').toLowerCase();
+        if (l === 'today') return d.toISOString().split('T')[0];
+        if (l === 'tomorrow') {
+            d.setDate(d.getDate() + 1);
+            return d.toISOString().split('T')[0];
         }
-        if (s === 'tomorrow') {
-            today.setDate(today.getDate() + 1);
-            return today.toISOString().split('T')[0];
-        }
-        if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
-            return str;
-        }
-
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
         return new Date().toISOString().split('T')[0];
     }
 
-    async function addToShopping(item, qty, category) {
+    async function addShopping(item, qty, cat) {
         if (!item) return;
-        
         try {
             const fd = new FormData();
             fd.append('action', 'add');
             fd.append('name', item);
             fd.append('qty', qty || '');
-            fd.append('category', category || 'other');
-            
+            fd.append('category', cat || 'other');
             await fetch('/shopping/api/items.php', { method: 'POST', body: fd });
-            
             goTo('/shopping/');
-        } catch (e) {
-            console.error('Add shopping error:', e);
-        }
+        } catch (e) { console.error('addShopping error:', e); }
     }
 
-    async function sendMessage(content) {
+    async function sendMsg(content) {
         if (!content) return;
-        
         try {
             const fd = new FormData();
             fd.append('content', content);
             fd.append('to_family', '1');
-            
             await fetch('/messages/api/send.php', { method: 'POST', body: fd });
-        } catch (e) {
-            console.error('Send message error:', e);
-        }
+        } catch (e) { console.error('sendMsg error:', e); }
     }
 
-    async function clearBought() {
-        try {
-            const fd = new FormData();
-            fd.append('action', 'clear_bought');
-            await fetch('/shopping/api/items.php', { method: 'POST', body: fd });
-        } catch (e) {}
-    }
-
-    async function markNotificationsRead() {
-        try {
-            const fd = new FormData();
-            fd.append('action', 'mark_all_read');
-            await fetch('/notifications/api/', { method: 'POST', body: fd });
-        } catch (e) {}
-    }
-
-    // ============ TEXT TO SPEECH ============
+    // ============ TTS ============
     function speak(text, callback) {
+        console.log('🔊 speak:', text);
+        
         if (!text) {
             if (callback) callback();
             return;
@@ -578,63 +573,62 @@
         state.isSpeaking = true;
         showSpeaking();
 
-        console.log('🔊 Speaking:', text);
-
-        // Calculate how long this should take
+        // Duration calc
         const words = text.split(/\s+/).length;
-        const duration = Math.max(
-            CONFIG.minTtsDuration,
-            Math.min(words / CONFIG.ttsWordsPerSecond * 1000, CONFIG.maxTtsDuration)
-        );
+        const duration = Math.max(CONFIG.minTtsDuration, Math.min(words / CONFIG.ttsWordsPerSec * 1000, CONFIG.maxTtsDuration));
+        console.log('🔊 Duration:', duration, 'ms');
 
-        // Always use timeout as backup
+        // Fallback timer
         ttsTimer = setTimeout(function() {
-            console.log('🔊 TTS timer done');
+            console.log('🔊 TTS timer callback');
             finishSpeaking(callback);
         }, duration);
 
-        // Try Web Speech API
+        // Native TTS
+        if (isNativeApp && window.AndroidVoice && window.AndroidVoice.speak) {
+            try {
+                console.log('📱 Using native TTS');
+                window.AndroidVoice.speak(text);
+                return;
+            } catch (e) {
+                console.error('📱 Native TTS error:', e);
+            }
+        }
+
+        // Web TTS
         if (synthesis) {
             try {
-                synthesis.cancel(); // Clear queue
+                console.log('🌐 Using web TTS');
+                synthesis.cancel();
+                const utt = new SpeechSynthesisUtterance(text);
+                utt.rate = 1.0;
+                utt.pitch = 1.0;
                 
-                currentUtterance = new SpeechSynthesisUtterance(text);
-                currentUtterance.rate = CONFIG.ttsRate;
-                currentUtterance.pitch = CONFIG.ttsPitch;
-                
-                // Try to find English voice
                 const voices = synthesis.getVoices();
-                const englishVoice = voices.find(v => v.lang.startsWith('en'));
-                if (englishVoice) {
-                    currentUtterance.voice = englishVoice;
-                }
+                const voice = voices.find(v => v.lang.startsWith('en'));
+                if (voice) utt.voice = voice;
 
-                currentUtterance.onend = function() {
-                    console.log('🔊 TTS onend fired');
+                utt.onend = function() {
+                    console.log('🌐 TTS onend');
                     clearTimeout(ttsTimer);
                     finishSpeaking(callback);
                 };
 
-                currentUtterance.onerror = function(e) {
-                    console.log('🔊 TTS error:', e.error);
-                    // Timer will handle it
-                };
-
-                synthesis.speak(currentUtterance);
-                
+                synthesis.speak(utt);
             } catch (e) {
-                console.log('TTS error:', e);
-                // Timer will handle it
+                console.log('🌐 TTS error:', e);
             }
         }
     }
 
     function finishSpeaking(callback) {
-        if (!state.isSpeaking) return; // Already finished
-        
+        console.log('🔊 finishSpeaking');
+        if (!state.isSpeaking) {
+            console.log('   Already finished');
+            return;
+        }
         state.isSpeaking = false;
         clearTimeout(ttsTimer);
-        
         if (callback) {
             setTimeout(callback, 200);
         }
@@ -643,92 +637,88 @@
     function stopSpeaking() {
         clearTimeout(ttsTimer);
         state.isSpeaking = false;
-        
         if (synthesis) {
-            try { synthesis.cancel(); } catch(e) {}
+            try { synthesis.cancel(); } catch (e) {}
         }
-        currentUtterance = null;
     }
 
-    // ============ UI UPDATES ============
-    function updateTranscript(text, interim) {
+    // ============ UI ============
+    function updateTranscript(t, interim) {
         if (dom.transcript) {
-            dom.transcript.textContent = text || 'Listening...';
+            dom.transcript.textContent = t || 'Listening...';
             dom.transcript.classList.toggle('interim', interim);
         }
     }
 
     function showSuggestions(show) {
-        if (dom.suggestions) {
-            dom.suggestions.style.display = show ? 'block' : 'none';
-        }
+        if (dom.suggestions) dom.suggestions.style.display = show ? 'block' : 'none';
     }
 
-    function setAvatar(className) {
-        if (dom.avatar) {
-            dom.avatar.className = 'suzi-avatar ' + className;
-        }
+    function setAvatar(cls) {
+        if (dom.avatar) dom.avatar.className = 'suzi-avatar ' + cls;
     }
 
-    function setStatus(icon, text, subtext) {
+    function setStatus(icon, text, sub) {
         if (dom.icon) dom.icon.textContent = icon;
         if (dom.status) dom.status.textContent = text;
-        if (dom.substatus) dom.substatus.textContent = subtext || '';
+        if (dom.substatus) dom.substatus.textContent = sub || '';
     }
 
-    function setWaveform(active) {
-        if (dom.waveform) {
-            dom.waveform.classList.toggle('active', active);
-        }
+    function setWave(on) {
+        if (dom.waveform) dom.waveform.classList.toggle('active', on);
     }
 
     function showGreeting() {
         setAvatar('speaking');
         setStatus('👋', 'Hi!', "I'm Suzi");
-        setWaveform(true);
+        setWave(true);
     }
 
     function showListening() {
         setAvatar('listening');
         setStatus('🎤', 'Listening...', 'Speak now');
-        setWaveform(true);
+        setWave(true);
         if (dom.micBtn) dom.micBtn.classList.add('listening');
     }
 
     function showSpeaking() {
         setAvatar('speaking');
         setStatus('💬', 'Speaking...', '');
-        setWaveform(true);
+        setWave(true);
         if (dom.micBtn) dom.micBtn.classList.remove('listening');
     }
 
     function showThinking() {
         setAvatar('thinking');
         setStatus('🤔', 'Thinking...', '');
-        setWaveform(false);
+        setWave(false);
         if (dom.micBtn) dom.micBtn.classList.remove('listening');
     }
 
-    function showSuccess(title, subtitle) {
+    function showSuccess(title, sub) {
         setAvatar('success');
-        setStatus('✅', title, subtitle);
-        setWaveform(false);
+        setStatus('✅', title, sub);
+        setWave(false);
         if (dom.micBtn) dom.micBtn.classList.remove('listening');
     }
 
-    function showError(title, subtitle) {
+    function showError(title, sub) {
         setAvatar('error');
-        setStatus('❌', title, subtitle);
-        setWaveform(false);
+        setStatus('❌', title, sub);
+        setWave(false);
         if (dom.micBtn) dom.micBtn.classList.remove('listening');
     }
 
-    // ============ PUBLIC API ============
+    // ============ EXPOSE EVERYTHING GLOBALLY ============
+    
+    // Main API
     window.Suzi = {
-        open: open,
-        close: close,
+        open: openModal,
+        close: closeModal,
         speak: speak,
+        handleSpeech: handleSpeech,
         suggestion: function(text) {
+            console.log('💡 Suggestion clicked:', text);
             if (state.isOpen && !state.isListening && !state.isSpeaking && !state.isProcessing) {
                 updateTranscript(text, false);
                 showSuggestions(false);
@@ -737,18 +727,58 @@
         }
     };
 
-    // Alias
-    window.SuziVoiceAssistant = {
-        getInstance: function() { return window.Suzi; },
-        open: open,
-        close: close
+    // For native callbacks - AdvancedVoiceAssistant (original name)
+    window.AdvancedVoiceAssistant = {
+        instance: null,
+        getInstance: function() { 
+            if (!this.instance) this.instance = this;
+            return this; 
+        },
+        openModal: openModal,
+        closeModal: closeModal,
+        open: openModal,
+        close: closeModal,
+        // Static-style callbacks that Android calls
+        onNativeListeningStart: nativeListeningStart,
+        onNativeListeningStop: nativeListeningStop,
+        onNativeTranscript: nativeTranscript,
+        onNativeError: nativeError,
+        // Instance method style
+        handleTranscript: handleSpeech
     };
 
-    // Initialize when DOM ready
+    // Also as SuziVoiceAssistant
+    window.SuziVoiceAssistant = window.AdvancedVoiceAssistant;
+
+    // Direct global functions (in case Android calls these directly)
+    window.onNativeListeningStart = nativeListeningStart;
+    window.onNativeListeningStop = nativeListeningStop;
+    window.onNativeTranscript = nativeTranscript;
+    window.onNativeError = nativeError;
+    window.onVoiceResult = nativeTranscript; // Common alternative name
+    window.onSpeechResult = nativeTranscript; // Another alternative
+
+    // Debug helper
+    window.SuziDebug = {
+        state: function() { return state; },
+        isNative: function() { return isNativeApp; },
+        testTranscript: function(t) { 
+            console.log('🧪 TEST: Simulating transcript:', t);
+            nativeTranscript(t); 
+        },
+        testSpeech: function(t) {
+            console.log('🧪 TEST: Simulating speech:', t);
+            handleSpeech(t);
+        }
+    };
+
+    // Initialize
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
         init();
     }
+
+    console.log('🎤 Suzi v7.2 script loaded');
 
 })();
