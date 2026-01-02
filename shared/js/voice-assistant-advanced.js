@@ -1,8 +1,7 @@
 /**
  * ============================================
- * SUZI VOICE ASSISTANT v6.0 - COMPLETE SYSTEM
- * Full integration with all app areas
- * Fixed: race conditions, state management, restart logic
+ * SUZI VOICE ASSISTANT v7.0 - FAST & RESPONSIVE
+ * Local intent matching + reduced delays
  * ============================================
  */
 
@@ -21,7 +20,7 @@ class AdvancedVoiceAssistant {
             return AdvancedVoiceAssistant.instance;
         }
 
-        console.log('🎤 Suzi Voice Assistant v6.0 Initializing...');
+        console.log('🎤 Suzi Voice Assistant v7.0 Initializing...');
 
         // Detect native vs web
         this.isNativeApp = !!(window.AndroidVoice && typeof window.AndroidVoice.startListening === 'function');
@@ -44,16 +43,211 @@ class AdvancedVoiceAssistant {
         // Anti-duplicate
         this.lastTranscript = '';
         this.lastTranscriptTime = 0;
-        this.commandCooldown = 2000;
+        this.commandCooldown = 1500; // Reduced from 2000
 
         // Conversation history
         this.conversation = [];
-        this.maxConversationHistory = 5;
+        this.maxConversationHistory = 3; // Reduced from 5
 
         // DOM cache
         this.dom = {};
 
+        // Local intent patterns (fast matching, no API needed)
+        this.localIntents = this.buildLocalIntents();
+
         AdvancedVoiceAssistant.instance = this;
+    }
+
+    // ==================== LOCAL INTENT MATCHING ====================
+
+    buildLocalIntents() {
+        return [
+            // SHOPPING - very common
+            {
+                patterns: [
+                    /^add (.+?) to (?:the )?(?:shopping|list)/i,
+                    /^put (.+?) on (?:the )?(?:shopping|list)/i,
+                    /^(?:shopping )?add (.+)/i,
+                    /^buy (.+)/i
+                ],
+                handler: (match) => {
+                    const item = match[1].trim();
+                    const category = this.guessCategory(item);
+                    return {
+                        intent: 'add_shopping_item',
+                        slots: { item, category },
+                        response_text: `Adding ${item} to your shopping list!`
+                    };
+                }
+            },
+            {
+                patterns: [/^(?:show|open|go to) (?:the )?shopping/i, /^shopping list/i],
+                handler: () => ({
+                    intent: 'view_shopping',
+                    slots: {},
+                    response_text: 'Opening your shopping list!'
+                })
+            },
+
+            // NAVIGATION - instant
+            {
+                patterns: [/^(?:go to|open|show) (?:the )?home/i, /^home$/i],
+                handler: () => ({ intent: 'navigate', slots: { destination: 'home' }, response_text: 'Going home!' })
+            },
+            {
+                patterns: [/^(?:go to|open|show) (?:the )?notes?/i, /^notes?$/i],
+                handler: () => ({ intent: 'navigate', slots: { destination: 'notes' }, response_text: 'Opening notes!' })
+            },
+            {
+                patterns: [/^(?:go to|open|show) (?:the )?calendar/i, /^calendar$/i],
+                handler: () => ({ intent: 'navigate', slots: { destination: 'calendar' }, response_text: 'Opening calendar!' })
+            },
+            {
+                patterns: [/^(?:go to|open|show) (?:the )?messages?/i, /^messages?$/i],
+                handler: () => ({ intent: 'navigate', slots: { destination: 'messages' }, response_text: 'Opening messages!' })
+            },
+            {
+                patterns: [/^(?:go to|open|show) (?:the )?tracking/i, /^(?:where is everyone|family location)/i],
+                handler: () => ({ intent: 'navigate', slots: { destination: 'tracking' }, response_text: 'Opening tracking!' })
+            },
+            {
+                patterns: [/^(?:go to|open|show) (?:the )?weather/i],
+                handler: () => ({ intent: 'navigate', slots: { destination: 'weather' }, response_text: 'Opening weather!' })
+            },
+            {
+                patterns: [/^(?:go to|open|show) (?:the )?schedule/i, /^schedule$/i],
+                handler: () => ({ intent: 'navigate', slots: { destination: 'schedule' }, response_text: 'Opening schedule!' })
+            },
+            {
+                patterns: [/^(?:go to|open|show) (?:the )?notifications?/i],
+                handler: () => ({ intent: 'navigate', slots: { destination: 'notifications' }, response_text: 'Opening notifications!' })
+            },
+
+            // WEATHER - common, can handle locally
+            {
+                patterns: [/^(?:what'?s? the )?weather(?: today)?$/i, /^how'?s? the weather/i, /^weather today/i],
+                handler: () => ({ intent: 'get_weather_today', slots: {}, response_text: 'Let me check the weather for you.' })
+            },
+            {
+                patterns: [/^weather tomorrow/i, /^tomorrow'?s? weather/i, /^what'?s? the weather tomorrow/i],
+                handler: () => ({ intent: 'get_weather_tomorrow', slots: {}, response_text: 'Checking tomorrow\'s forecast.' })
+            },
+
+            // TRACKING - find family
+            {
+                patterns: [/^(?:where'?s?|find|locate) (?:my )?(mom|dad|mum|mother|father|wife|husband|son|daughter|brother|sister|grandma|grandpa|grandmother|grandfather)/i],
+                handler: (match) => ({
+                    intent: 'find_member',
+                    slots: { member_name: match[1] },
+                    response_text: `Looking for ${match[1]}!`
+                })
+            },
+            {
+                patterns: [/^(?:where'?s?|find|locate) (.+)/i],
+                handler: (match) => ({
+                    intent: 'find_member',
+                    slots: { member_name: match[1].trim() },
+                    response_text: `Looking for ${match[1].trim()}!`
+                })
+            },
+
+            // TIME - instant local response
+            {
+                patterns: [/^what time is it/i, /^what'?s? the time/i, /^time$/i],
+                handler: () => {
+                    const now = new Date();
+                    const time = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                    return { intent: 'smalltalk', slots: {}, response_text: `It's ${time}.` };
+                }
+            },
+            {
+                patterns: [/^what'?s? (?:today'?s? )?date/i, /^what day is it/i],
+                handler: () => {
+                    const now = new Date();
+                    const date = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+                    return { intent: 'smalltalk', slots: {}, response_text: `Today is ${date}.` };
+                }
+            },
+
+            // GREETINGS - instant
+            {
+                patterns: [/^(?:hi|hello|hey)(?: suzi)?$/i, /^good (?:morning|afternoon|evening)/i],
+                handler: () => {
+                    const greetings = ['Hey there!', 'Hi! How can I help?', 'Hello! What can I do for you?'];
+                    return { intent: 'smalltalk', slots: {}, response_text: greetings[Math.floor(Math.random() * greetings.length)] };
+                }
+            },
+            {
+                patterns: [/^(?:thanks?|thank you)/i],
+                handler: () => ({ intent: 'smalltalk', slots: {}, response_text: 'You\'re welcome!' })
+            },
+            {
+                patterns: [/^(?:what can you do|help|commands)/i],
+                handler: () => ({
+                    intent: 'smalltalk',
+                    slots: {},
+                    response_text: 'I can help with shopping lists, notes, calendar, messages, weather, and finding family. Just ask!'
+                })
+            },
+
+            // CREATE NOTE - capture content
+            {
+                patterns: [/^(?:create|make|new|add) (?:a )?note(?::? (.+))?/i, /^note(?::? (.+))?/i],
+                handler: (match) => ({
+                    intent: 'create_note',
+                    slots: { content: match[1]?.trim() || '' },
+                    response_text: match[1] ? 'Creating your note!' : 'Opening notes for you!'
+                })
+            },
+
+            // MESSAGES
+            {
+                patterns: [/^(?:send|tell) (?:a )?message(?::? (.+))?/i],
+                handler: (match) => ({
+                    intent: 'send_message',
+                    slots: { content: match[1]?.trim() || '' },
+                    response_text: match[1] ? 'Sending your message!' : 'What would you like to say?'
+                })
+            }
+        ];
+    }
+
+    guessCategory(item) {
+        const categories = {
+            dairy: ['milk', 'cheese', 'yogurt', 'butter', 'cream', 'eggs', 'yoghurt'],
+            meat: ['chicken', 'beef', 'pork', 'lamb', 'fish', 'bacon', 'sausage', 'mince', 'steak', 'chops'],
+            produce: ['apple', 'banana', 'orange', 'tomato', 'potato', 'onion', 'carrot', 'lettuce', 'spinach', 'fruit', 'vegetable', 'avocado', 'lemon', 'garlic'],
+            bakery: ['bread', 'rolls', 'buns', 'cake', 'pastry', 'croissant', 'muffin'],
+            pantry: ['rice', 'pasta', 'flour', 'sugar', 'salt', 'oil', 'sauce', 'spice', 'cereal', 'coffee', 'tea'],
+            frozen: ['ice cream', 'frozen', 'pizza'],
+            snacks: ['chips', 'chocolate', 'candy', 'cookies', 'biscuits', 'nuts', 'crisps'],
+            beverages: ['juice', 'soda', 'water', 'wine', 'beer', 'coke', 'sprite', 'drink'],
+            household: ['soap', 'detergent', 'toilet paper', 'paper towel', 'cleaning', 'shampoo', 'toothpaste']
+        };
+
+        const lower = item.toLowerCase();
+        for (const [category, keywords] of Object.entries(categories)) {
+            if (keywords.some(kw => lower.includes(kw))) {
+                return category;
+            }
+        }
+        return 'other';
+    }
+
+    tryLocalIntent(transcript) {
+        const text = transcript.trim();
+
+        for (const intent of this.localIntents) {
+            for (const pattern of intent.patterns) {
+                const match = text.match(pattern);
+                if (match) {
+                    console.log('⚡ Local intent match:', pattern);
+                    return intent.handler(match);
+                }
+            }
+        }
+
+        return null; // No local match, need API
     }
 
     init() {
@@ -128,9 +322,9 @@ class AdvancedVoiceAssistant {
                 this.updateStatus('🚫', 'Microphone Blocked', 'Enable in browser settings');
             } else if (event.error === 'no-speech') {
                 // Silent restart for no-speech
-                this.scheduleRestart(800);
+                this.scheduleRestart(400); // Reduced from 800
             } else if (event.error !== 'aborted') {
-                this.scheduleRestart(1000);
+                this.scheduleRestart(500); // Reduced from 1000
             }
         };
 
@@ -141,7 +335,7 @@ class AdvancedVoiceAssistant {
 
             // Only restart if modal is open and we're not busy
             if (this.modalOpen && !this.isSpeaking && !this.processingCommand) {
-                this.scheduleRestart(600);
+                this.scheduleRestart(300); // Reduced from 600
             }
         };
     }
@@ -316,9 +510,9 @@ class AdvancedVoiceAssistant {
         this.updateMicState(false);
     }
 
-    scheduleRestart(delay = 600) {
+    scheduleRestart(delay = 300) { // Reduced from 600
         if (this.isNativeApp) return;
-        
+
         // Clear existing timeout
         if (this.restartTimeout) {
             clearTimeout(this.restartTimeout);
@@ -327,11 +521,11 @@ class AdvancedVoiceAssistant {
 
         this.restartTimeout = setTimeout(() => {
             this.restartTimeout = null;
-            
+
             // Double-check conditions before restarting
-            if (this.modalOpen && 
-                !this.isSpeaking && 
-                !this.processingCommand && 
+            if (this.modalOpen &&
+                !this.isSpeaking &&
+                !this.processingCommand &&
                 !this.recognitionActive &&
                 !this.isListening) {
                 this.startListening();
@@ -393,22 +587,14 @@ class AdvancedVoiceAssistant {
         this.updateTranscript('Listening...');
         this.showSuggestions(true);
 
-        // For native: speak and let onNativeSpeakDone handle listening
-        // For web: speak then start listening via callback
+        // Start listening immediately - don't wait for greeting
         if (this.isNativeApp) {
             this.speak('How can I help?');
-            // Native will call onNativeSpeakDone which starts listening
         } else {
-            // Web: start listening immediately, speak in background
-            // This is more responsive - user can interrupt
+            // Web: start listening RIGHT AWAY, speak greeting in background
+            // User can interrupt immediately
+            this.startListening();
             this.speak('How can I help?');
-            
-            // Start listening after a short delay for speech to begin
-            setTimeout(() => {
-                if (this.modalOpen && !this.isListening && !this.recognitionActive) {
-                    this.startListening();
-                }
-            }, 800);
         }
     }
 
@@ -478,20 +664,36 @@ class AdvancedVoiceAssistant {
     }
 
     // ==================== COMMAND PROCESSING ====================
-    
+
     async processVoiceCommand(command) {
         if (this.processingCommand || !command || command.trim().length === 0) return;
 
         this.processingCommand = true;
         this.stopListening();
 
-        this.updateStatus('⚙️', 'Thinking...', 'Processing your request');
+        // TRY LOCAL INTENT FIRST (instant, no API)
+        const localResult = this.tryLocalIntent(command);
 
-        // Set a timeout for the API call
+        if (localResult) {
+            console.log('⚡ Using local intent - skipping API');
+            this.updateStatus('✅', 'Got it!', '');
+
+            // Add to conversation history
+            this.conversation.push({ role: 'user', content: command });
+            this.conversation.push({ role: 'assistant', content: localResult.response_text });
+
+            await this.executeIntent(localResult);
+            return;
+        }
+
+        // No local match - use API
+        this.updateStatus('⚙️', 'Thinking...', '');
+
+        // Reduced timeout: 8 seconds
         const controller = new AbortController();
         this.apiTimeout = setTimeout(() => {
             controller.abort();
-        }, 12000); // 12 second timeout
+        }, 8000);
 
         try {
             const response = await fetch('/api/voice-intent.php', {
@@ -500,7 +702,7 @@ class AdvancedVoiceAssistant {
                 body: JSON.stringify({
                     transcript: command,
                     page: window.location.pathname,
-                    conversation: this.conversation.slice(-4) // Only send last 4 messages
+                    conversation: this.conversation.slice(-2) // Reduced: only last 2 messages
                 }),
                 signal: controller.signal
             });
@@ -521,7 +723,7 @@ class AdvancedVoiceAssistant {
             // Add to conversation history
             this.conversation.push({ role: 'user', content: command });
             this.conversation.push({ role: 'assistant', content: data.response_text });
-            
+
             // Keep only last N exchanges
             if (this.conversation.length > this.maxConversationHistory * 2) {
                 this.conversation = this.conversation.slice(-this.maxConversationHistory * 2);
@@ -534,18 +736,18 @@ class AdvancedVoiceAssistant {
             this.apiTimeout = null;
 
             console.error('Voice command error:', error);
-            
-            let fallback = "Sorry, I couldn't process that. Try again?";
+
+            let fallback = "Sorry, couldn't get that. Try again?";
             if (error.name === 'AbortError') {
-                fallback = "That took too long. Please try again.";
+                fallback = "Taking too long. Try again?";
             }
-            
+
             this.updateStatus('❓', 'Oops', fallback);
-            
+
             this.speak(fallback, () => {
                 this.processingCommand = false;
-                this.scheduleRestart(800);
-            }, 1.1);
+                this.scheduleRestart(400); // Reduced from 800
+            }, 1.15);
         }
     }
 
@@ -593,9 +795,9 @@ class AdvancedVoiceAssistant {
             this.processingCommand = false;
 
             if (!willNavigate && this.modalOpen) {
-                this.scheduleRestart(800);
+                this.scheduleRestart(300); // Reduced from 800
             }
-        }, 1.05);
+        }, 1.1); // Slightly faster speech
 
         // Execute the action
         try {
@@ -748,7 +950,7 @@ class AdvancedVoiceAssistant {
                 } else {
                     window.location.href = '/shopping/';
                 }
-            }, 2000);
+            }, 800); // Reduced from 2000
 
         } catch (error) {
             console.error('Add to shopping failed:', error);
@@ -784,7 +986,7 @@ class AdvancedVoiceAssistant {
                 if (window.location.pathname.includes('/shopping/')) {
                     location.reload();
                 }
-            }, 2000);
+            }, 800);
         } catch (error) {
             console.error('Clear bought failed:', error);
         }
@@ -794,11 +996,11 @@ class AdvancedVoiceAssistant {
         let url = '/notes/?new=1';
         if (slots.content) url += '&content=' + encodeURIComponent(slots.content);
         if (slots.title) url += '&title=' + encodeURIComponent(slots.title);
-        
+
         this.speakTimeout = setTimeout(() => {
             this.closeModal();
             window.location.href = url;
-        }, 2000);
+        }, 600);
     }
 
     navigateToCreateEvent(slots) {
@@ -806,11 +1008,11 @@ class AdvancedVoiceAssistant {
         if (slots.title) url += '&content=' + encodeURIComponent(slots.title);
         if (slots.date) url += '&date=' + this.parseDate(slots.date);
         if (slots.time) url += '&time=' + slots.time;
-        
+
         this.speakTimeout = setTimeout(() => {
             this.closeModal();
             window.location.href = url;
-        }, 2000);
+        }, 600);
     }
 
     navigateToCreateSchedule(slots) {
@@ -819,11 +1021,11 @@ class AdvancedVoiceAssistant {
         if (slots.date) url += '&date=' + this.parseDate(slots.date);
         if (slots.time) url += '&time=' + slots.time;
         if (slots.type) url += '&type=' + slots.type;
-        
+
         this.speakTimeout = setTimeout(() => {
             this.closeModal();
             window.location.href = url;
-        }, 2000);
+        }, 600);
     }
 
     async getWeather(intent) {
@@ -833,12 +1035,12 @@ class AdvancedVoiceAssistant {
             if (!window.location.pathname.includes('/weather/')) {
                 this.navigate('/weather/');
             }
-        }, 3000);
+        }, 1000);
     }
 
     async sendMessage(content) {
         if (!content) return;
-        
+
         try {
             const formData = new FormData();
             formData.append('content', content);
@@ -853,7 +1055,7 @@ class AdvancedVoiceAssistant {
                 if (window.location.pathname.includes('/messages/')) {
                     location.reload();
                 }
-            }, 2000);
+            }, 600);
         } catch (error) {
             console.error('Send message failed:', error);
         }
@@ -862,7 +1064,7 @@ class AdvancedVoiceAssistant {
     async showNextEvent() {
         this.speakTimeout = setTimeout(() => {
             this.navigate('/calendar/');
-        }, 2500);
+        }, 800);
     }
 
     async markAllNotificationsRead() {
@@ -884,7 +1086,7 @@ class AdvancedVoiceAssistant {
                         window.HeaderMenu.updateNotificationBadge(0);
                     }
                 }
-            }, 2000);
+            }, 600);
         } catch (error) {
             console.error('Mark all read failed:', error);
         }
@@ -893,15 +1095,15 @@ class AdvancedVoiceAssistant {
     async getAISuggestions() {
         this.speakTimeout = setTimeout(() => {
             this.navigate('/home/#suggestions');
-        }, 2500);
+        }, 800);
     }
 
     navigate(url) {
-        this.updateStatus('🧭', 'Navigating...', 'One moment');
+        this.updateStatus('🧭', 'Navigating...', '');
         this.speakTimeout = setTimeout(() => {
             this.closeModal();
             window.location.href = url;
-        }, 1500);
+        }, 600); // Reduced from 1500
     }
 
     getNavigationPath(destination) {
@@ -1026,7 +1228,7 @@ class AdvancedVoiceAssistant {
                 this.isSpeaking = false;
                 if (onEndCallback) onEndCallback();
             }
-        }, (text.length * 100) + 3000);
+        }, (text.length * 80) + 2000); // Reduced from (100 * len) + 3000
 
         utterance.onend = () => {
             clearTimeout(fallbackTimeout);
