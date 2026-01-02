@@ -508,17 +508,17 @@ class TrackingMapProfessional {
                     ">
                         ${markerContent}
                     </div>
-                    ${member.status === 'online' ? `
+                    ${member.status === 'online' || member.status === 'stale' ? `
                         <div style="
                             position: absolute;
                             top: -46px;
                             left: 8px;
                             width: 14px;
                             height: 14px;
-                            background: #43e97b;
+                            background: ${member.status === 'online' ? '#43e97b' : '#ffa502'};
                             border: 2px solid white;
                             border-radius: 50%;
-                            box-shadow: 0 2px 6px rgba(67, 233, 123, 0.6);
+                            box-shadow: 0 2px 6px ${member.status === 'online' ? 'rgba(67, 233, 123, 0.6)' : 'rgba(255, 165, 2, 0.4)'};
                         "></div>
                     ` : ''}
                 </div>
@@ -588,17 +588,17 @@ class TrackingMapProfessional {
                     overflow: hidden;
                 ">
                     ${markerContent}
-                    ${member.status === 'online' ? `
+                    ${member.status === 'online' || member.status === 'stale' ? `
                         <div style="
                             position: absolute;
                             bottom: 0;
                             right: 0;
                             width: 18px;
                             height: 18px;
-                            background: #43e97b;
+                            background: ${member.status === 'online' ? '#43e97b' : '#ffa502'};
                             border: 3px solid white;
                             border-radius: 50%;
-                            box-shadow: 0 2px 8px rgba(67, 233, 123, 0.6);
+                            box-shadow: 0 2px 8px ${member.status === 'online' ? 'rgba(67, 233, 123, 0.6)' : 'rgba(255, 165, 2, 0.4)'};
                         "></div>
                     ` : ''}
                 </div>
@@ -750,11 +750,11 @@ class TrackingMapProfessional {
                             ` : ''}
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="${member.status === 'online' ? '#43e97b' : '#6c757d'}">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="${member.status === 'online' ? '#43e97b' : member.status === 'stale' ? '#ffa502' : '#6c757d'}">
                                 <circle cx="12" cy="12" r="10"></circle>
                             </svg>
-                            <span style="font-size: ${isMobile ? '12px' : '13px'}; font-weight: 700; color: ${member.status === 'online' ? '#43e97b' : '#6c757d'};">
-                                ${member.status === 'online' ? 'Tracking' : 'Offline'}
+                            <span style="font-size: ${isMobile ? '12px' : '13px'}; font-weight: 700; color: ${member.status === 'online' ? '#43e97b' : member.status === 'stale' ? '#ffa502' : '#6c757d'};">
+                                ${member.status === 'online' ? 'Tracking' : member.status === 'stale' ? `Stale (${Math.floor((member.seconds_ago || 0) / 60)}m ago)` : member.status === 'no_location' ? 'No location yet' : 'Offline'}
                             </span>
                         </div>
                     </div>
@@ -970,22 +970,48 @@ class TrackingMapProfessional {
                     }
                 }
                 
-                const isTracking = member.status === 'online';
+                // Handle new status values: online, stale, no_location, offline
+                const status = member.status;
+                const isTracking = status === 'online';
+                const isStale = status === 'stale';
+                const hasNoLocation = status === 'no_location';
+
                 memberCard.setAttribute('data-tracking', isTracking ? 'true' : 'false');
-                
+                memberCard.setAttribute('data-status', status);
+
                 const statusDot = memberCard.querySelector('.member-status-dot');
                 if (statusDot) {
-                    statusDot.style.background = isTracking ? '#43e97b' : '#6c757d';
                     if (isTracking) {
+                        statusDot.style.background = '#43e97b'; // green
                         statusDot.style.boxShadow = '0 0 12px rgba(67, 233, 123, 0.6)';
+                    } else if (isStale) {
+                        statusDot.style.background = '#ffa502'; // amber
+                        statusDot.style.boxShadow = '0 0 12px rgba(255, 165, 2, 0.4)';
                     } else {
+                        statusDot.style.background = '#6c757d'; // grey
                         statusDot.style.boxShadow = 'none';
                     }
                 }
-                
+
                 const statusText = memberCard.querySelector('.member-status span');
                 if (statusText) {
-                    statusText.textContent = isTracking ? 'Tracking' : 'Offline';
+                    if (isTracking) {
+                        statusText.textContent = 'Tracking';
+                    } else if (isStale) {
+                        // Show how long ago with seconds_ago
+                        const mins = Math.floor((member.seconds_ago || 0) / 60);
+                        statusText.textContent = `Last update: ${mins}m ago`;
+                    } else if (hasNoLocation) {
+                        statusText.textContent = 'No location yet';
+                    } else {
+                        // offline - show how long
+                        const hours = Math.floor((member.seconds_ago || 0) / 3600);
+                        if (hours > 0) {
+                            statusText.textContent = `Offline (${hours}h)`;
+                        } else {
+                            statusText.textContent = 'Offline';
+                        }
+                    }
                 }
                 
             } catch (error) {
