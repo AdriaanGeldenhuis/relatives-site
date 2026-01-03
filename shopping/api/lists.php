@@ -3,17 +3,35 @@
  * Shopping Lists API
  */
 
+session_start();
+
 require_once __DIR__ . '/../../core/bootstrap.php';
 
 header('Content-Type: application/json');
+header('Access-Control-Allow-Credentials: true');
+header('Cache-Control: no-cache, must-revalidate');
 
-// Auth check
-$auth = new Auth($db);
-$user = $auth->getCurrentUser();
-
-if (!$user) {
+// Auth check - use same pattern as items.php
+if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
-    echo json_encode(['success' => false, 'error' => 'Unauthorized']);
+    echo json_encode(['success' => false, 'error' => 'Unauthorized - Please login']);
+    exit;
+}
+
+try {
+    $stmt = $db->prepare("SELECT * FROM users WHERE id = ? AND status = 'active'");
+    $stmt->execute([$_SESSION['user_id']]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$user) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'User not found or inactive']);
+        exit;
+    }
+} catch (PDOException $e) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Database error']);
+    error_log('User fetch error: ' . $e->getMessage());
     exit;
 }
 
