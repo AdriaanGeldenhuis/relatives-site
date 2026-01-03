@@ -124,6 +124,36 @@ try {
             }
             error_log("Schedule API ADD - Verified! Row exists: " . json_encode($verifyRow));
 
+            // SYNC: Also insert into the unified 'events' table for calendar view
+            try {
+                $syncStmt = $db->prepare("
+                    INSERT INTO events
+                    (family_id, user_id, created_by, assigned_to, title, notes,
+                     starts_at, ends_at, kind, color, status, reminder_minutes,
+                     recurrence_rule, focus_mode, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, NOW(), NOW())
+                ");
+                $syncStmt->execute([
+                    $user['family_id'],
+                    $assignedTo ?? $user['id'],
+                    $user['id'],
+                    $assignedTo,
+                    $title,
+                    $notes ?: null,
+                    $startsAt,
+                    $endsAt,
+                    $kind,
+                    $color,
+                    $reminderMinutes > 0 ? $reminderMinutes : null,
+                    $repeatRule,
+                    $focusMode
+                ]);
+                error_log("Schedule API ADD - Synced to events table, ID: " . $db->lastInsertId());
+            } catch (PDOException $e) {
+                // Don't fail if sync fails, just log it
+                error_log("Schedule API ADD - Sync to events table failed: " . $e->getMessage());
+            }
+
             // Handle recurring events
             if ($repeatRule && in_array($repeatRule, ['daily', 'weekly', 'weekdays', 'monthly'])) {
                 $occurrences = 10; // Create next 10 occurrences
@@ -206,42 +236,54 @@ try {
             
         case 'toggle':
             $eventId = $_POST['event_id'] ?? 0;
-            
+
             $stmt = $db->prepare("
-                SELECT id, status, kind, starts_at, ends_at, user_id
-                FROM schedule_events 
+                SELECT id, status, kind, title, starts_at, ends_at, user_id
+                FROM schedule_events
                 WHERE id = ? AND family_id = ?
             ");
             $stmt->execute([$eventId, $user['family_id']]);
             $event = $stmt->fetch(PDO::FETCH_ASSOC);
-            
+
             if (!$event) {
                 throw new Exception('Event not found');
             }
-            
+
             $newStatus = $event['status'] === 'done' ? 'pending' : 'done';
             $actualEnd = $newStatus === 'done' ? date('Y-m-d H:i:s') : null;
-            
+
             $stmt = $db->prepare("
-                UPDATE schedule_events 
+                UPDATE schedule_events
                 SET status = ?, actual_end = ?, updated_at = NOW()
                 WHERE id = ?
             ");
             $stmt->execute([$newStatus, $actualEnd, $eventId]);
-            
+
+            // SYNC: Also update status in events table
+            try {
+                $syncStmt = $db->prepare("
+                    UPDATE events
+                    SET status = ?, updated_at = NOW()
+                    WHERE title = ? AND starts_at = ? AND family_id = ?
+                ");
+                $syncStmt->execute([$newStatus, $event['title'], $event['starts_at'], $user['family_id']]);
+            } catch (PDOException $e) {
+                error_log("Schedule API TOGGLE - Sync to events table failed: " . $e->getMessage());
+            }
+
             // Update productivity stats if marking as done
             if ($newStatus === 'done') {
                 $eventDate = date('Y-m-d', strtotime($event['starts_at']));
                 $duration = (strtotime($event['ends_at']) - strtotime($event['starts_at'])) / 60;
-                
-                $column = $event['kind'] === 'study' ? 'study_minutes' : 
+
+                $column = $event['kind'] === 'study' ? 'study_minutes' :
                          ($event['kind'] === 'work' ? 'work_minutes' : 'focus_minutes');
-                
+
                 $stmt = $db->prepare("
-                    INSERT INTO schedule_productivity 
+                    INSERT INTO schedule_productivity
                     (user_id, family_id, date, {$column}, completed_tasks, total_tasks)
                     VALUES (?, ?, ?, ?, 1, 1)
-                    ON DUPLICATE KEY UPDATE 
+                    ON DUPLICATE KEY UPDATE
                     {$column} = {$column} + VALUES({$column}),
                     completed_tasks = completed_tasks + 1,
                     total_tasks = total_tasks + 1
@@ -253,7 +295,7 @@ try {
                     $duration
                 ]);
             }
-            
+
             echo json_encode([
                 'success' => true,
                 'status' => $newStatus
@@ -367,14 +409,33 @@ try {
             
         case 'delete':
             $eventId = $_POST['event_id'] ?? 0;
-            
+
+            // Get event details for syncing to events table
+            $getStmt = $db->prepare("SELECT title, starts_at FROM schedule_events WHERE id = ? AND family_id = ?");
+            $getStmt->execute([$eventId, $user['family_id']]);
+            $eventToDelete = $getStmt->fetch(PDO::FETCH_ASSOC);
+
             $stmt = $db->prepare("
-                UPDATE schedule_events 
+                UPDATE schedule_events
                 SET status = 'cancelled', updated_at = NOW()
                 WHERE id = ? AND family_id = ?
             ");
             $stmt->execute([$eventId, $user['family_id']]);
-            
+
+            // SYNC: Also cancel in events table (match by title + starts_at + family_id)
+            if ($eventToDelete) {
+                try {
+                    $syncStmt = $db->prepare("
+                        UPDATE events
+                        SET status = 'cancelled', updated_at = NOW()
+                        WHERE title = ? AND starts_at = ? AND family_id = ?
+                    ");
+                    $syncStmt->execute([$eventToDelete['title'], $eventToDelete['starts_at'], $user['family_id']]);
+                } catch (PDOException $e) {
+                    error_log("Schedule API DELETE - Sync to events table failed: " . $e->getMessage());
+                }
+            }
+
             echo json_encode(['success' => true]);
             break;
             
