@@ -482,8 +482,8 @@
         </div>
     </div>
 
-    <script src="/shared/js/voice-assistant-advanced.js"></script>
-    <script src="/shared/js/app.js"></script>
+    <script src="/shared/js/voice-assistant-advanced.js?v=<?php echo $cacheVersion; ?>"></script>
+    <script src="/shared/js/app.js?v=<?php echo $cacheVersion; ?>"></script>
     
     <?php if (isset($pageJS)): ?>
         <?php foreach ((array)$pageJS as $js): ?>

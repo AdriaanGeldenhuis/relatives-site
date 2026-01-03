@@ -16,7 +16,10 @@ if ($currentDir === 'home' || $currentPage === 'index') {
 }
 
 $appVersion = '9.1.0';
-$buildTime = time();
+// Use static cache version - bump this when deploying CSS/JS changes
+// DO NOT use time() as it defeats browser caching!
+$cacheVersion = '9.1.1';
+$buildTime = $cacheVersion;
 
 // Get unread notification count
 $unreadNotifCount = 0;
