@@ -183,7 +183,7 @@ $activePage = 'notifications';
 require_once __DIR__ . '/../shared/components/header.php';
 ?>
 
-<link rel="stylesheet" href="/notifications/css/notifications.css">
+<link rel="stylesheet" href="/notifications/css/notifications.css?v=<?php echo $cacheVersion; ?>">
 
 <div class="bg-animation">
     <div class="bg-gradient"></div>
@@ -401,6 +401,6 @@ window.currentUser = <?php echo json_encode([
 ]); ?>;
 </script>
 
-<script src="/notifications/js/notifications.js"></script>
+<script src="/notifications/js/notifications.js?v=<?php echo $cacheVersion; ?>"></script>
 
 <?php require_once __DIR__ . '/../shared/components/footer.php'; ?>

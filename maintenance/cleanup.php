@@ -28,6 +28,12 @@ try {
         $cache->clearExpired();
         echo "Cleaned up expired cache entries\n";
     }
+
+    // Clean up expired weather cache
+    $stmt = $db->prepare("DELETE FROM weather_cache WHERE expires_at < NOW()");
+    $stmt->execute();
+    $weatherCleaned = $stmt->rowCount();
+    echo "Cleaned up {$weatherCleaned} expired weather cache entries\n";
     
     // Clean up old audit logs (older than 90 days)
     $stmt = $db->prepare("DELETE FROM audit_log WHERE created_at < DATE_SUB(NOW(), INTERVAL 90 DAY)");

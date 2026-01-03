@@ -240,8 +240,9 @@ $showWelcome = isset($_GET['welcome']) || isset($_GET['joined']);
 
 $pageTitle = 'Home';
 $activePage = 'home';
-$pageCSS = ['/home/css/home.css?v=' . time()];
-$pageJS = ['/home/js/home.js?v=' . time()];
+$cacheVersion = '9.1.1';
+$pageCSS = ['/home/css/home.css?v=' . $cacheVersion];
+$pageJS = ['/home/js/home.js?v=' . $cacheVersion];
 
 require_once __DIR__ . '/../shared/components/header.php';
 ?>

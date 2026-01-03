@@ -360,6 +360,6 @@ function closeModal(modalId) {
 }
 </script>
 
-<script src="/home/js/home.js"></script>
+<script src="/home/js/home.js?v=<?php echo $cacheVersion; ?>"></script>
 
 <?php require_once __DIR__ . '/../shared/components/footer.php'; ?>
