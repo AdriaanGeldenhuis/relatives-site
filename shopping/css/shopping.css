@@ -1854,5 +1854,118 @@ body {
 .mt-4 { margin-top: var(--shopping-space-lg) !important; }
 
 /* ============================================
+   LIST GEAR DROPDOWN (for list tabs at top)
+   ============================================ */
+
+.list-gear-menu {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.list-gear-dropdown {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    background: rgba(30, 25, 60, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--shopping-radius-sm);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    min-width: 110px;
+    overflow: hidden;
+}
+
+.list-gear-dropdown.active {
+    display: block;
+}
+
+.list-gear-dropdown .gear-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 14px;
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: var(--shopping-transition);
+    text-align: left;
+}
+
+.list-gear-dropdown .gear-option:hover {
+    background: rgba(102, 126, 234, 0.3);
+}
+
+.list-gear-dropdown .gear-option.gear-delete:hover {
+    background: rgba(255, 107, 107, 0.3);
+}
+
+.list-gear-dropdown .gear-icon {
+    font-size: 0.9rem;
+}
+
+/* ============================================
+   ITEM GEAR DROPDOWN (for shopping items)
+   ============================================ */
+
+.item-gear-menu {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.gear-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 100;
+    background: rgba(40, 35, 70, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--shopping-radius-xs);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+    min-width: 100px;
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+.gear-dropdown.active {
+    display: block;
+}
+
+.gear-dropdown .gear-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: var(--shopping-transition);
+    text-align: left;
+}
+
+.gear-dropdown .gear-option:hover {
+    background: rgba(102, 126, 234, 0.25);
+}
+
+.gear-dropdown .gear-option.gear-delete:hover {
+    background: rgba(255, 107, 107, 0.25);
+}
+
+.gear-dropdown .gear-icon {
+    font-size: 0.85rem;
+}
+
+/* ============================================
    END OF SHOPPING.CSS
    ============================================ */
