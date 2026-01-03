@@ -687,6 +687,36 @@ require_once __DIR__ . '/../shared/components/header.php';
                     <textarea id="editEventNotes" class="form-control" rows="3" placeholder="Optional notes..."></textarea>
                 </div>
 
+                <div class="form-options-group">
+                    <label class="option-toggle">
+                        <input type="checkbox" id="editEnableReminder" onchange="toggleEditReminderInput()">
+                        <span class="toggle-label">🔔 Reminder</span>
+                    </label>
+                    <input type="number" id="editReminderMinutes" placeholder="Minutes before"
+                           style="display:none;" min="5" max="1440" step="5"
+                           class="form-control form-control-inline">
+                </div>
+
+                <div class="form-options-group">
+                    <label class="option-toggle">
+                        <input type="checkbox" id="editEnableRecurring" onchange="toggleEditRecurringInput()">
+                        <span class="toggle-label">🔁 Repeat</span>
+                    </label>
+                    <select id="editRepeatRule" style="display:none;" class="form-control form-control-inline">
+                        <option value="daily">Daily</option>
+                        <option value="weekdays">Weekdays</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                </div>
+
+                <div class="form-options-group">
+                    <label class="option-toggle">
+                        <input type="checkbox" id="editFocusMode">
+                        <span class="toggle-label">🎯 Focus Mode</span>
+                    </label>
+                </div>
+
                 <div class="modal-actions">
                     <button type="submit" class="btn btn-primary">Save Changes</button>
                     <button type="button" onclick="closeModal('editEventModal')" class="btn btn-secondary">Cancel</button>

@@ -621,6 +621,21 @@ function editEvent(eventId) {
     document.getElementById('editEventNotes').value = eventData.notes || '';
     document.getElementById('editEventAssign').value = eventData.assigned_to || '';
 
+    // Populate reminder fields
+    const hasReminder = eventData.reminder_minutes && eventData.reminder_minutes > 0;
+    document.getElementById('editEnableReminder').checked = hasReminder;
+    document.getElementById('editReminderMinutes').value = eventData.reminder_minutes || 15;
+    document.getElementById('editReminderMinutes').style.display = hasReminder ? 'block' : 'none';
+
+    // Populate recurring fields
+    const hasRecurring = eventData.repeat_rule && eventData.repeat_rule !== '';
+    document.getElementById('editEnableRecurring').checked = hasRecurring;
+    document.getElementById('editRepeatRule').value = eventData.repeat_rule || 'weekly';
+    document.getElementById('editRepeatRule').style.display = hasRecurring ? 'block' : 'none';
+
+    // Populate focus mode
+    document.getElementById('editFocusMode').checked = eventData.focus_mode == 1;
+
     showModal('editEventModal');
 }
 
@@ -636,23 +651,34 @@ async function saveEditedEvent(event) {
     const notes = document.getElementById('editEventNotes').value.trim();
     const assignedTo = document.getElementById('editEventAssign').value;
 
+    // Get new fields
+    const reminderCheckbox = document.getElementById('editEnableReminder');
+    const reminderMinutesInput = document.getElementById('editReminderMinutes');
+    const recurringCheckbox = document.getElementById('editEnableRecurring');
+    const repeatRuleSelect = document.getElementById('editRepeatRule');
+    const focusModeCheckbox = document.getElementById('editFocusMode');
+
+    const reminderMinutes = reminderCheckbox.checked ? parseInt(reminderMinutesInput.value || 15) : 0;
+    const repeatRule = recurringCheckbox.checked ? repeatRuleSelect.value : null;
+    const focusMode = focusModeCheckbox.checked ? 1 : 0;
+
     if (!title || !eventDate || !start || !end) {
         showToast('Please fill all required fields', 'error');
         return;
     }
-    
+
     // Validate times
     if (start >= end) {
         showToast('End time must be after start time', 'error');
         return;
     }
-    
+
     // Show loading
     const submitBtn = event.target.querySelector('button[type="submit"]');
     const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.textContent = 'Saving...';
-    
+
     try {
         await apiCall(window.ScheduleApp.API.events, {
             action: 'update',
@@ -663,7 +689,10 @@ async function saveEditedEvent(event) {
             end_time: end,
             kind: type,
             notes: notes || null,
-            assigned_to: assignedTo || null
+            assigned_to: assignedTo || null,
+            reminder_minutes: reminderMinutes,
+            repeat_rule: repeatRule,
+            focus_mode: focusMode
         });
 
         showToast('Event updated!', 'success');
@@ -2085,6 +2114,22 @@ function toggleReminderInput() {
 function toggleRecurringInput() {
     const checkbox = document.getElementById('enableRecurring');
     const select = document.getElementById('repeatRule');
+    select.style.display = checkbox.checked ? 'inline-block' : 'none';
+}
+
+// Edit modal toggle functions
+function toggleEditReminderInput() {
+    const checkbox = document.getElementById('editEnableReminder');
+    const input = document.getElementById('editReminderMinutes');
+    input.style.display = checkbox.checked ? 'inline-block' : 'none';
+    if (checkbox.checked && !input.value) {
+        input.value = '15';
+    }
+}
+
+function toggleEditRecurringInput() {
+    const checkbox = document.getElementById('editEnableRecurring');
+    const select = document.getElementById('editRepeatRule');
     select.style.display = checkbox.checked ? 'inline-block' : 'none';
 }
 

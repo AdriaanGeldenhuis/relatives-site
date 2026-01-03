@@ -389,6 +389,9 @@ try {
             $kind = $_POST['kind'] ?? 'todo';
             $notes = trim($_POST['notes'] ?? '');
             $assignedTo = $_POST['assigned_to'] ?? null;
+            $reminderMinutes = (int)($_POST['reminder_minutes'] ?? 0);
+            $repeatRule = $_POST['repeat_rule'] ?? null;
+            $focusMode = (int)($_POST['focus_mode'] ?? 0);
 
             if (!$title || !$startTime || !$endTime) {
                 throw new Exception('Missing required fields');
@@ -411,7 +414,8 @@ try {
             $stmt = $db->prepare("
                 UPDATE schedule_events
                 SET title = ?, kind = ?, starts_at = ?, ends_at = ?,
-                    notes = ?, assigned_to = ?, updated_at = NOW()
+                    notes = ?, assigned_to = ?, reminder_minutes = ?,
+                    repeat_rule = ?, focus_mode = ?, updated_at = NOW()
                 WHERE id = ? AND family_id = ?
             ");
             $stmt->execute([
@@ -421,6 +425,9 @@ try {
                 $endsAt,
                 $notes ?: null,
                 $assignedTo ?: null,
+                $reminderMinutes > 0 ? $reminderMinutes : null,
+                $repeatRule ?: null,
+                $focusMode,
                 $eventId,
                 $user['family_id']
             ]);
@@ -439,13 +446,20 @@ try {
                 $stmt->execute([$daysDiff, $daysDiff, $eventId, $user['family_id']]);
             }
 
-            // Also update title/kind on child events
+            // Also update title/kind/reminder/focus on child events
             $stmt = $db->prepare("
                 UPDATE schedule_events
-                SET title = ?, kind = ?, updated_at = NOW()
+                SET title = ?, kind = ?, reminder_minutes = ?, focus_mode = ?, updated_at = NOW()
                 WHERE parent_event_id = ? AND family_id = ?
             ");
-            $stmt->execute([$title, $kind, $eventId, $user['family_id']]);
+            $stmt->execute([
+                $title,
+                $kind,
+                $reminderMinutes > 0 ? $reminderMinutes : null,
+                $focusMode,
+                $eventId,
+                $user['family_id']
+            ]);
 
             echo json_encode(['success' => true]);
             break;
