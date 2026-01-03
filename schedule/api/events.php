@@ -57,16 +57,19 @@ try {
             $repeatRule = $_POST['repeat_rule'] ?? null;
             $color = $_POST['color'] ?? '#667eea';
             $focusMode = (int)($_POST['focus_mode'] ?? 0);
-            
+
+            // Debug logging
+            error_log("Schedule API ADD - Title: $title, Date: $date, Start: $startTime, End: $endTime, Kind: $kind, FamilyID: {$user['family_id']}, UserID: {$user['id']}");
+
             if (!$title || !$startTime || !$endTime) {
                 throw new Exception('Missing required fields');
             }
-            
+
             // Validate kind
             if (!in_array($kind, ['study', 'work', 'todo', 'break', 'focus'])) {
                 throw new Exception('Invalid event type');
             }
-            
+
             $startsAt = $date . ' ' . $startTime . ':00';
             $endsAt = $date . ' ' . $endTime . ':00';
 
@@ -74,13 +77,14 @@ try {
             // Events should always be allowed to be created
 
             $stmt = $db->prepare("
-                INSERT INTO schedule_events 
-                (family_id, user_id, added_by, assigned_to, title, kind, notes, 
-                 starts_at, ends_at, color, status, reminder_minutes, repeat_rule, 
+                INSERT INTO schedule_events
+                (family_id, user_id, added_by, assigned_to, title, kind, notes,
+                 starts_at, ends_at, color, status, reminder_minutes, repeat_rule,
                  focus_mode, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, NOW())
             ");
-            $stmt->execute([
+
+            $insertResult = $stmt->execute([
                 $user['family_id'],
                 $assignedTo ?? $user['id'],
                 $user['id'],
@@ -95,9 +99,31 @@ try {
                 $repeatRule,
                 $focusMode
             ]);
-            
+
+            if (!$insertResult) {
+                error_log("Schedule API ADD - INSERT FAILED: " . print_r($stmt->errorInfo(), true));
+                throw new Exception('Failed to insert event into database');
+            }
+
             $eventId = $db->lastInsertId();
-            
+            error_log("Schedule API ADD - Success! EventID: $eventId");
+
+            // VERIFY: Check if data actually persisted
+            if (!$eventId || $eventId == 0) {
+                error_log("Schedule API ADD - ERROR: lastInsertId returned 0!");
+                throw new Exception('Insert failed - no ID returned');
+            }
+
+            // Double-check by selecting the inserted row
+            $verifyStmt = $db->prepare("SELECT id, title, starts_at FROM schedule_events WHERE id = ?");
+            $verifyStmt->execute([$eventId]);
+            $verifyRow = $verifyStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$verifyRow) {
+                error_log("Schedule API ADD - ERROR: Could not find inserted row with ID $eventId!");
+                throw new Exception('Insert verification failed - row not found');
+            }
+            error_log("Schedule API ADD - Verified! Row exists: " . json_encode($verifyRow));
+
             // Handle recurring events
             if ($repeatRule && in_array($repeatRule, ['daily', 'weekly', 'weekdays', 'monthly'])) {
                 $occurrences = 10; // Create next 10 occurrences
