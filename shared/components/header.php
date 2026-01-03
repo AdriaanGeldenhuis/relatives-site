@@ -6,13 +6,15 @@
  * ============================================
  */
 
-$currentPage = basename($_SERVER['PHP_SELF'], '.php');
-$currentDir = basename(dirname($_SERVER['PHP_SELF']));
+// Determine active page from URL path
+$requestUri = $_SERVER['REQUEST_URI'] ?? '/';
+$urlPath = parse_url($requestUri, PHP_URL_PATH);
+$pathParts = array_filter(explode('/', trim($urlPath, '/')));
+$activePage = !empty($pathParts) ? $pathParts[0] : 'home';
 
-if ($currentDir === 'home' || $currentPage === 'index') {
+// Normalize: root path = home
+if (empty($activePage) || $activePage === 'index.php') {
     $activePage = 'home';
-} else {
-    $activePage = $currentDir;
 }
 
 $appVersion = '9.1.0';
