@@ -67,13 +67,16 @@ class AdvancedVoiceAssistant {
             // SHOPPING - very common
             {
                 patterns: [
-                    /^add (.+?) to (?:the )?(?:shopping|list)/i,
-                    /^put (.+?) on (?:the )?(?:shopping|list)/i,
-                    /^(?:shopping )?add (.+)/i,
-                    /^buy (.+)/i
+                    /^add (.+?) to (?:the |my )?(?:shopping(?: list)?|list)/i,
+                    /^put (.+?) on (?:the |my )?(?:shopping(?: list)?|list)/i,
+                    /^(?:shopping )?add ([^,]+?)(?:\s+to\s+(?:the|my)?\s*(?:shopping|list).*)?$/i,
+                    /^buy ([^,]+?)(?:\s+to\s+(?:the|my)?\s*(?:shopping|list).*)?$/i
                 ],
                 handler: (match) => {
-                    const item = match[1].trim();
+                    // Clean up the item - remove trailing "to shopping list" phrases
+                    let item = match[1].trim()
+                        .replace(/\s+to\s+(?:the\s+|my\s+)?(?:shopping|list).*$/i, '')
+                        .trim();
                     const category = this.guessCategory(item);
                     return {
                         intent: 'add_shopping_item',
@@ -986,7 +989,27 @@ class AdvancedVoiceAssistant {
         try {
             const response = await fetch('/shopping/api/lists.php?action=get_all');
             const data = await response.json();
-            return data.lists && data.lists[0] ? data.lists[0].id : null;
+
+            // If lists exist, return the first one
+            if (data.lists && data.lists[0]) {
+                return data.lists[0].id;
+            }
+
+            // No lists exist - create a default one
+            console.log('No shopping lists found, creating default list...');
+            const createResponse = await fetch('/shopping/api/lists.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'action=create&name=Shopping List&icon=🛒',
+                credentials: 'same-origin'
+            });
+
+            const createData = await createResponse.json();
+            if (createData.success && createData.list_id) {
+                return createData.list_id;
+            }
+
+            return null;
         } catch (error) {
             console.error('Failed to get shopping lists:', error);
             return null;
