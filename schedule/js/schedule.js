@@ -606,34 +606,37 @@ function editEvent(eventId) {
         return;
     }
     
-    // Parse times
+    // Parse date and times
     const startTime = new Date(eventData.starts_at);
     const endTime = new Date(eventData.ends_at);
-    
+    const eventDate = startTime.toISOString().split('T')[0];
+
     // Populate form
     document.getElementById('editEventId').value = eventId;
     document.getElementById('editEventTitle').value = eventData.title || '';
+    document.getElementById('editEventDate').value = eventDate;
     document.getElementById('editEventStart').value = startTime.toTimeString().slice(0, 5);
     document.getElementById('editEventEnd').value = endTime.toTimeString().slice(0, 5);
     document.getElementById('editEventType').value = eventData.kind || 'todo';
     document.getElementById('editEventNotes').value = eventData.notes || '';
     document.getElementById('editEventAssign').value = eventData.assigned_to || '';
-    
+
     showModal('editEventModal');
 }
 
 async function saveEditedEvent(event) {
     if (event) event.preventDefault();
-    
+
     const eventId = document.getElementById('editEventId').value;
     const title = document.getElementById('editEventTitle').value.trim();
+    const eventDate = document.getElementById('editEventDate').value;
     const start = document.getElementById('editEventStart').value;
     const end = document.getElementById('editEventEnd').value;
     const type = document.getElementById('editEventType').value;
     const notes = document.getElementById('editEventNotes').value.trim();
     const assignedTo = document.getElementById('editEventAssign').value;
-    
-    if (!title || !start || !end) {
+
+    if (!title || !eventDate || !start || !end) {
         showToast('Please fill all required fields', 'error');
         return;
     }
@@ -655,26 +658,38 @@ async function saveEditedEvent(event) {
             action: 'update',
             event_id: eventId,
             title: title,
-            date: window.ScheduleApp.selectedDate,
+            date: eventDate,
             start_time: start,
             end_time: end,
             kind: type,
             notes: notes || null,
             assigned_to: assignedTo || null
         });
-        
+
         showToast('Event updated!', 'success');
         closeModal('editEventModal');
-        
-        // Update DOM
-        updateEventInDOM(eventId, { 
-            title, 
-            start, 
-            end, 
-            kind: type, 
-            notes, 
-            assigned_to: assignedTo 
-        });
+
+        // If date changed, remove from current view and reload
+        if (eventDate !== window.ScheduleApp.selectedDate) {
+            const eventCard = document.querySelector(`[data-event-id="${eventId}"]`);
+            if (eventCard) {
+                eventCard.remove();
+            }
+            // Remove from allEvents array
+            window.ScheduleApp.allEvents = window.ScheduleApp.allEvents.filter(e => e.id != eventId);
+            updateStats();
+            showToast(`Event moved to ${eventDate}`, 'info');
+        } else {
+            // Update DOM if staying on same date
+            updateEventInDOM(eventId, {
+                title,
+                start,
+                end,
+                kind: type,
+                notes,
+                assigned_to: assignedTo
+            });
+        }
         
     } catch (error) {
         showToast(error.message || 'Failed to update event', 'error');

@@ -643,6 +643,11 @@ require_once __DIR__ . '/../shared/components/header.php';
                     <input type="text" id="editEventTitle" class="form-control" required>
                 </div>
 
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="editEventDate" class="form-control" required>
+                </div>
+
                 <div class="form-row">
                     <div class="form-group">
                         <label>Start Time</label>
