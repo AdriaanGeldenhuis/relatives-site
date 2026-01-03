@@ -24,6 +24,37 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// ============================================
+// CORS HANDLING - Consistent for native apps
+// ============================================
+$allowedOrigins = [
+    'https://relatives.co.za',
+    'https://www.relatives.co.za',
+    'http://localhost',
+    'http://localhost:3000',
+    'http://localhost:8080',
+    'capacitor://localhost',
+    'ionic://localhost',
+    'http://127.0.0.1',
+    'https://127.0.0.1'
+];
+
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+// Check if origin is in whitelist
+if (in_array($origin, $allowedOrigins, true)) {
+    header("Access-Control-Allow-Origin: $origin");
+    header('Access-Control-Allow-Credentials: true');
+    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+}
+
+// Handle OPTIONS preflight requests
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
 date_default_timezone_set('Africa/Johannesburg');
 
 // Load environment variables

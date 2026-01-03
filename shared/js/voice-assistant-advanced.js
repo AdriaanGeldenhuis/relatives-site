@@ -57,7 +57,56 @@ class AdvancedVoiceAssistant {
         // Local intent patterns (fast matching, no API needed)
         this.localIntents = this.buildLocalIntents();
 
+        // Setup global hooks for native app callbacks
+        this.setupNativeHooks();
+
         AdvancedVoiceAssistant.instance = this;
+    }
+
+    /**
+     * Setup global SuziVoice hooks for native app communication
+     * Native app should call these when TTS finishes or STT has a result
+     */
+    setupNativeHooks() {
+        window.SuziVoice = {
+            // Called when native STT has a transcript result
+            onSttResult: (text) => {
+                const v = AdvancedVoiceAssistant.getInstance();
+                if (text && text.trim()) {
+                    v.handleTranscript(text.trim());
+                }
+            },
+            // Called when native TTS finishes speaking
+            onTtsEnd: () => {
+                const v = AdvancedVoiceAssistant.getInstance();
+                v.isSpeaking = false;
+                // Ask follow-up if modal still open and not processing
+                if (v.modalOpen && !v.processingCommand) {
+                    v.askFollowUp();
+                }
+            },
+            // Called when native TTS starts speaking
+            onTtsStart: () => {
+                const v = AdvancedVoiceAssistant.getInstance();
+                v.isSpeaking = true;
+                v.updateStatus('🔊', 'Speaking...', '');
+            },
+            // Called when native STT starts listening
+            onSttStart: () => {
+                const v = AdvancedVoiceAssistant.getInstance();
+                v.isListening = true;
+                v.recognitionActive = true;
+                v.updateMicState(true);
+                v.updateStatus('🎤', 'Listening...', 'Speak now');
+            },
+            // Called when native STT stops listening
+            onSttStop: () => {
+                const v = AdvancedVoiceAssistant.getInstance();
+                v.isListening = false;
+                v.recognitionActive = false;
+                v.updateMicState(false);
+            }
+        };
     }
 
     // ==================== LOCAL INTENT MATCHING ====================
@@ -67,21 +116,28 @@ class AdvancedVoiceAssistant {
             // SHOPPING - very common
             {
                 patterns: [
-                    /^add (.+?) to (?:the |my )?(?:shopping(?: list)?|list)/i,
-                    /^put (.+?) on (?:the |my )?(?:shopping(?: list)?|list)/i,
-                    /^(?:shopping )?add ([^,]+?)(?:\s+to\s+(?:the|my)?\s*(?:shopping|list).*)?$/i,
-                    /^buy ([^,]+?)(?:\s+to\s+(?:the|my)?\s*(?:shopping|list).*)?$/i
+                    // "add sugar" / "add sugar to my shopping list" / "add sugar to the list"
+                    /^add\s+(.+?)(?:\s+(?:to|on)\s+(?:my|the)?\s*(?:shopping\s*)?list)?\s*$/i,
+                    // "put sugar on my shopping list"
+                    /^put\s+(.+?)(?:\s+(?:to|on)\s+(?:my|the)?\s*(?:shopping\s*)?list)?\s*$/i,
+                    // "shopping add sugar"
+                    /^shopping\s+add\s+(.+?)\s*$/i,
+                    // "buy sugar"
+                    /^buy\s+(.+?)\s*$/i
                 ],
                 handler: (match) => {
-                    // Clean up the item - remove trailing "to shopping list" phrases
-                    let item = match[1].trim()
-                        .replace(/\s+to\s+(?:the\s+|my\s+)?(?:shopping|list).*$/i, '')
-                        .trim();
+                    let item = (match[1] || '').trim();
+
+                    // Extra safety: strip trailing "to my shopping list" if it sneaks in
+                    item = item.replace(/\s+(?:to|on)\s+(?:my|the)\s+(?:shopping\s*)?list\s*$/i, '').trim();
+                    // Also strip just "to my list" or "on the list"
+                    item = item.replace(/\s+(?:to|on)\s+(?:my|the)\s+list\s*$/i, '').trim();
+
                     const category = this.guessCategory(item);
                     return {
                         intent: 'add_shopping_item',
                         slots: { item, category },
-                        response_text: `Adding ${item} to your shopping list!`
+                        response_text: `Added ${item} to your shopping list.`
                     };
                 }
             },
@@ -798,11 +854,11 @@ class AdvancedVoiceAssistant {
         this.updateStatus(icons[intent] || '✅', 'Got it!', response_text.substring(0, 50) + (response_text.length > 50 ? '...' : ''));
 
         // Determine if this intent navigates away
+        // NOTE: add_shopping_item is NOT a navigation intent - user stays on current page
         const navigationIntents = [
-            'navigate', 
-            'add_shopping_item', 
-            'create_event', 
-            'create_schedule', 
+            'navigate',
+            'create_event',
+            'create_schedule',
             'create_note',
             'send_message',
             'view_shopping',
@@ -969,15 +1025,15 @@ class AdvancedVoiceAssistant {
             const data = await response.json();
             if (!data.success) throw new Error(data.error || 'Failed to add item');
 
-            // Navigate after speech finishes
-            this.speakTimeout = setTimeout(() => {
-                this.closeModal();
-                if (window.location.pathname.includes('/shopping/')) {
+            // If we're already on the shopping page, reload to show new item
+            // But do NOT navigate away from other pages - let user continue conversation
+            if (window.location.pathname.includes('/shopping/')) {
+                this.speakTimeout = setTimeout(() => {
                     location.reload();
-                } else {
-                    window.location.href = '/shopping/';
-                }
-            }, 800); // Reduced from 2000
+                }, 300);
+            }
+            // DO NOT navigate away from current page
+            // executeIntent() will handle follow-up ("Anything else?")
 
         } catch (error) {
             console.error('Add to shopping failed:', error);
@@ -987,31 +1043,53 @@ class AdvancedVoiceAssistant {
 
     async getDefaultShoppingList() {
         try {
-            const response = await fetch('/shopping/api/lists.php?action=get_all');
-            const data = await response.json();
+            // 1) Fetch lists WITH cookies (credentials: same-origin)
+            const response = await fetch('/shopping/api/lists.php?action=get_all', {
+                credentials: 'same-origin'
+            });
+
+            if (!response.ok) {
+                console.error('Failed to fetch shopping lists:', response.status);
+                return null;
+            }
+
+            const data = await response.json().catch(() => null);
+            if (!data || !data.success) {
+                console.error('Invalid shopping lists response');
+                return null;
+            }
 
             // If lists exist, return the first one
             if (data.lists && data.lists[0]) {
                 return data.lists[0].id;
             }
 
-            // No lists exist - create a default one
-            console.log('No shopping lists found, creating default list...');
+            // 2) No lists exist - auto-create "Main List"
+            console.log('No shopping lists found, creating Main List...');
+            const formData = new FormData();
+            formData.append('action', 'create');
+            formData.append('name', 'Main List');
+            formData.append('icon', '🛒');
+
             const createResponse = await fetch('/shopping/api/lists.php', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'action=create&name=Shopping List&icon=🛒',
+                body: formData,
                 credentials: 'same-origin'
             });
 
-            const createData = await createResponse.json();
-            if (createData.success && createData.list_id) {
+            if (!createResponse.ok) {
+                console.error('Failed to create shopping list:', createResponse.status);
+                return null;
+            }
+
+            const createData = await createResponse.json().catch(() => null);
+            if (createData && createData.success && createData.list_id) {
                 return createData.list_id;
             }
 
             return null;
         } catch (error) {
-            console.error('Failed to get shopping lists:', error);
+            console.error('Failed to get/create shopping list:', error);
             return null;
         }
     }
@@ -1218,7 +1296,18 @@ class AdvancedVoiceAssistant {
                 this.isSpeaking = true;
                 this.updateStatus('🔊', 'Speaking...', '');
                 window.AndroidVoice.speak(text);
-                // Native callbacks will handle completion
+
+                // Fallback timer: assume TTS done after estimated time
+                // (in case native callback doesn't fire)
+                const estimatedDuration = Math.max(1200, text.split(' ').length * 350);
+                setTimeout(() => {
+                    if (this.isSpeaking) {
+                        console.log('🔊 Native TTS fallback timeout triggered');
+                        window.SuziVoice?.onTtsEnd?.();
+                    }
+                    if (onEndCallback) onEndCallback();
+                }, estimatedDuration);
+
                 return;
             } catch (error) {
                 console.error('❌ Native speak failed', error);
