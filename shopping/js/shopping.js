@@ -623,13 +623,14 @@ async function deleteItem(itemId) {
         // Remove from DOM after animation
         setTimeout(() => {
             itemCard.remove();
-            
+
             if (category) {
                 updateCategoryCount(category);
             }
-            
+
             updateProgressBar();
-            
+            updateClearBoughtButton();
+
             // Check if we need to show empty state
             const remainingItems = document.querySelectorAll('.item-card');
             if (remainingItems.length === 0) {
@@ -1629,6 +1630,195 @@ function exportListAs(format) {
 }
 
 // ============================================
+// ADD ITEM MODAL FUNCTIONS
+// ============================================
+
+/**
+ * Show the Add Item modal
+ */
+function showAddItemModal() {
+    // Reset form
+    const form = document.getElementById('addItemForm');
+    if (form) form.reset();
+
+    showModal('addItemModal');
+}
+
+/**
+ * Submit Add Item form
+ */
+async function submitAddItem(event) {
+    if (event) event.preventDefault();
+
+    const nameInput = document.getElementById('itemName');
+    const qtyInput = document.getElementById('itemQty');
+    const priceInput = document.getElementById('itemPrice');
+    const categorySelect = document.getElementById('itemCategory');
+
+    const name = nameInput?.value?.trim();
+
+    if (!name) {
+        showToast('Please enter item name', 'error');
+        if (nameInput) nameInput.focus();
+        return;
+    }
+
+    // Get submit button
+    const submitBtn = event?.target?.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn?.innerHTML || 'Add Item';
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = 'Adding...';
+    }
+
+    try {
+        // Parse smart input
+        const parsed = parseSmartInput(name);
+
+        // Build data object
+        const data = {
+            action: 'add',
+            list_id: ShoppingApp.currentListId,
+            name: parsed.name
+        };
+
+        // Add optional fields
+        const qty = qtyInput?.value?.trim() || parsed.qty;
+        if (qty) data.qty = qty;
+
+        const price = priceInput?.value?.trim();
+        if (price && parseFloat(price) > 0) data.price = price;
+
+        const category = categorySelect?.value;
+        if (category && category !== 'other') data.category = category;
+
+        // Call API
+        const result = await apiCall(ShoppingApp.API.items, data);
+
+        showToast(`Added "${parsed.name}"!`, 'success');
+
+        // Close modal and clear form
+        closeModal('addItemModal');
+        if (nameInput) nameInput.value = '';
+        if (qtyInput) qtyInput.value = '';
+        if (priceInput) priceInput.value = '';
+        if (categorySelect) categorySelect.value = 'other';
+
+        // Add to DOM instantly
+        addItemToDOM({
+            id: result.item_id,
+            name: parsed.name,
+            qty: qty || null,
+            price: price || null,
+            category: category || 'other',
+            status: 'pending',
+            added_by_name: ShoppingApp.currentUser.name,
+            avatar_color: '#667eea'
+        });
+
+        updateProgressBar();
+        updateClearBoughtButton();
+
+    } catch (error) {
+        showToast(error.message || 'Failed to add item', 'error');
+        console.error('Add item error:', error);
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+        }
+    }
+}
+
+/**
+ * Quick add from modal frequent items
+ */
+async function quickAddFromModal(itemName, category) {
+    try {
+        const result = await apiCall(ShoppingApp.API.items, {
+            action: 'add',
+            list_id: ShoppingApp.currentListId,
+            name: itemName,
+            category: category || 'other'
+        });
+
+        showToast(`Added "${itemName}"!`, 'success');
+        closeModal('addItemModal');
+
+        addItemToDOM({
+            id: result.item_id,
+            name: itemName,
+            category: category || 'other',
+            status: 'pending',
+            added_by_name: ShoppingApp.currentUser.name
+        });
+
+        updateProgressBar();
+        updateClearBoughtButton();
+
+    } catch (error) {
+        showToast(error.message || 'Failed to add item', 'error');
+        console.error('Quick add error:', error);
+    }
+}
+
+// ============================================
+// LIST EDIT FUNCTION
+// ============================================
+
+/**
+ * Edit existing list (show modal with current values)
+ */
+function editList(listId, listName, listIcon) {
+    document.getElementById('listModalTitle').textContent = '✏️ Edit Shopping List';
+    document.getElementById('listId').value = listId;
+    document.getElementById('listName').value = listName;
+
+    // Set the correct icon
+    document.querySelectorAll('input[name="listIcon"]').forEach(input => {
+        input.checked = (input.value === listIcon);
+    });
+
+    // If no icon matched, default to first
+    if (!document.querySelector('input[name="listIcon"]:checked')) {
+        document.getElementById('icon1').checked = true;
+    }
+
+    showModal('listModal');
+}
+
+// ============================================
+// UPDATE CLEAR BOUGHT BUTTON
+// ============================================
+
+/**
+ * Update the Clear Bought button state
+ */
+function updateClearBoughtButton() {
+    const clearBtn = document.getElementById('clearBoughtBtn');
+    if (!clearBtn) return;
+
+    const boughtItems = document.querySelectorAll('.item-card.bought');
+    const count = boughtItems.length;
+
+    // Update disabled state
+    clearBtn.disabled = (count === 0);
+
+    // Update badge
+    let badge = clearBtn.querySelector('.badge');
+    if (count > 0) {
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'badge';
+            clearBtn.appendChild(badge);
+        }
+        badge.textContent = count;
+    } else if (badge) {
+        badge.remove();
+    }
+}
+
+// ============================================
 // KEYBOARD SHORTCUTS
 // ============================================
 function initKeyboardShortcuts() {
@@ -1855,5 +2045,11 @@ window.shareViaEmail = shareViaEmail;
 window.shareViaSMS = shareViaSMS;
 window.exportList = exportList;
 window.exportListAs = exportListAs;
+// New functions for modal and list editing
+window.showAddItemModal = showAddItemModal;
+window.submitAddItem = submitAddItem;
+window.quickAddFromModal = quickAddFromModal;
+window.editList = editList;
+window.updateClearBoughtButton = updateClearBoughtButton;
 
 console.log('%c✅ Real-Time Shopping Ready!', 'font-size: 16px; font-weight: bold; color: #43e97b;');

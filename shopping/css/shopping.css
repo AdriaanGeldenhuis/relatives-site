@@ -669,6 +669,26 @@ body {
     font-size: 1.125rem;
 }
 
+/* Badge for buttons */
+.btn .badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.25);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    margin-left: 6px;
+}
+
+.btn:disabled .badge {
+    opacity: 0.6;
+}
+
 /* ============================================
    EMPTY STATE
    ============================================ */

@@ -267,12 +267,13 @@ require_once __DIR__ . '/../shared/components/header.php';
                     </div>
                     
                     <div class="action-buttons">
-                        <?php if ($boughtItems > 0): ?>
-                            <button onclick="clearBought()" class="btn btn-secondary btn-sm">
-                                <span class="btn-icon">🗑️</span>
-                                <span>Clear Bought</span>
-                            </button>
-                        <?php endif; ?>
+                        <button onclick="clearBought()" class="btn btn-secondary btn-sm" id="clearBoughtBtn" <?php echo $boughtItems === 0 ? 'disabled' : ''; ?>>
+                            <span class="btn-icon">🗑️</span>
+                            <span>Clear Bought</span>
+                            <?php if ($boughtItems > 0): ?>
+                                <span class="badge"><?php echo $boughtItems; ?></span>
+                            <?php endif; ?>
+                        </button>
                         <button onclick="exportList()" class="btn btn-secondary btn-sm">
                             <span class="btn-icon">📥</span>
                             <span>Export</span>
