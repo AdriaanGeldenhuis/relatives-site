@@ -1216,7 +1216,105 @@ function goToPickedDate() {
 }
 
 function changeView(view) {
-    window.location.href = `?date=${window.ScheduleApp.selectedDate}&view=${view}`;
+    if (view === 'week') {
+        showWeekView();
+    } else if (view === 'timeline') {
+        showTimelineView();
+    } else {
+        window.location.href = `?date=${window.ScheduleApp.selectedDate}&view=${view}`;
+    }
+}
+
+// Show week view modal
+async function showWeekView() {
+    showModal('weekViewModal');
+    const contentEl = document.getElementById('weekViewContent');
+    contentEl.innerHTML = '<div class="week-loading">Loading week view...</div>';
+
+    try {
+        // Get week dates
+        const selectedDate = new Date(window.ScheduleApp.selectedDate);
+        const dayOfWeek = selectedDate.getDay();
+        const monday = new Date(selectedDate);
+        monday.setDate(selectedDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+
+        const weekDays = [];
+        for (let i = 0; i < 7; i++) {
+            const day = new Date(monday);
+            day.setDate(monday.getDate() + i);
+            weekDays.push(day);
+        }
+
+        // Fetch events for the week
+        const startDate = weekDays[0].toISOString().split('T')[0];
+        const endDate = weekDays[6].toISOString().split('T')[0];
+
+        const result = await apiCall(window.ScheduleApp.API.events, {
+            action: 'get_week',
+            start_date: startDate,
+            end_date: endDate
+        }, 'GET');
+
+        const events = result.events || [];
+        const eventsByDate = {};
+
+        events.forEach(event => {
+            const date = event.starts_at.split(' ')[0];
+            if (!eventsByDate[date]) eventsByDate[date] = [];
+            eventsByDate[date].push(event);
+        });
+
+        // Render week view
+        let html = '<div class="week-view-grid">';
+
+        weekDays.forEach(day => {
+            const dateStr = day.toISOString().split('T')[0];
+            const isToday = dateStr === new Date().toISOString().split('T')[0];
+            const isSelected = dateStr === window.ScheduleApp.selectedDate;
+            const dayEvents = eventsByDate[dateStr] || [];
+
+            html += `
+                <div class="week-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}"
+                     onclick="goToDate('${dateStr}')">
+                    <div class="week-day-header">
+                        <span class="week-day-name">${day.toLocaleDateString('en-US', { weekday: 'short' })}</span>
+                        <span class="week-day-number">${day.getDate()}</span>
+                    </div>
+                    <div class="week-day-events">
+                        ${dayEvents.length === 0 ? '<span class="no-events">No events</span>' :
+                            dayEvents.slice(0, 4).map(event => {
+                                const startTime = new Date(event.starts_at);
+                                const typeColor = window.ScheduleApp.types[event.kind]?.color || '#667eea';
+                                return `
+                                    <div class="week-event ${event.status}" style="border-left-color: ${typeColor}">
+                                        <span class="event-time">${startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+                                        <span class="event-name">${escapeHtml(event.title)}</span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        ${dayEvents.length > 4 ? `<span class="more-events">+${dayEvents.length - 4} more</span>` : ''}
+                    </div>
+                    <div class="week-day-count">${dayEvents.length} events</div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        contentEl.innerHTML = html;
+
+    } catch (error) {
+        contentEl.innerHTML = '<div class="error-state">Failed to load week view. Please try again.</div>';
+        console.error('Week view error:', error);
+    }
+}
+
+function goToDate(dateStr) {
+    closeModal('weekViewModal');
+    window.location.href = `?date=${dateStr}&view=day`;
+}
+
+function showTimelineView() {
+    showToast('Timeline view coming soon!', 'info');
 }
 
 // ============================================
@@ -1952,7 +2050,10 @@ function showToast(message, type = 'info') {
 }
 
 function showQuickAdd() {
-    document.getElementById('eventTitle').focus();
+    showModal('addEventModal');
+    setTimeout(() => {
+        document.getElementById('eventTitle').focus();
+    }, 100);
 }
 
 function toggleReminderInput() {
@@ -2087,5 +2188,8 @@ window.showAnalytics = showAnalytics;
 window.showTemplates = showTemplates;
 window.applyTemplate = applyTemplate;
 window.createNewTemplate = createNewTemplate;
+window.showWeekView = showWeekView;
+window.showTimelineView = showTimelineView;
+window.goToDate = goToDate;
 
 console.log('%c✅ Enhanced Schedule with Focus Mode Ready!', 'font-size: 16px; font-weight: bold; color: #43e97b;');

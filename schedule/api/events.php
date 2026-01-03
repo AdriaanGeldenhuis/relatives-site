@@ -325,7 +325,7 @@ try {
         case 'get_productivity':
             $startDate = $_GET['start_date'] ?? date('Y-m-d', strtotime('-7 days'));
             $endDate = $_GET['end_date'] ?? date('Y-m-d');
-            
+
             $stmt = $db->prepare("
                 SELECT * FROM schedule_productivity
                 WHERE user_id = ?
@@ -334,10 +334,36 @@ try {
             ");
             $stmt->execute([$user['id'], $startDate, $endDate]);
             $productivity = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
             echo json_encode([
                 'success' => true,
                 'productivity' => $productivity
+            ]);
+            break;
+
+        case 'get_week':
+            $startDate = $_GET['start_date'] ?? date('Y-m-d', strtotime('monday this week'));
+            $endDate = $_GET['end_date'] ?? date('Y-m-d', strtotime('sunday this week'));
+
+            $stmt = $db->prepare("
+                SELECT
+                    e.*,
+                    u.full_name as added_by_name, u.avatar_color,
+                    a.full_name as assigned_to_name, a.avatar_color as assigned_color
+                FROM schedule_events e
+                LEFT JOIN users u ON e.added_by = u.id
+                LEFT JOIN users a ON e.assigned_to = a.id
+                WHERE e.family_id = ?
+                AND DATE(e.starts_at) BETWEEN ? AND ?
+                AND e.status != 'cancelled'
+                ORDER BY e.starts_at ASC
+            ");
+            $stmt->execute([$user['family_id'], $startDate, $endDate]);
+            $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            echo json_encode([
+                'success' => true,
+                'events' => $events
             ]);
             break;
             
