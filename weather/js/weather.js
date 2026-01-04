@@ -6,6 +6,160 @@
  * ============================================
  */
 
+console.log('%c🌤️ Weather Widget Loading v3.0...', 'font-size: 16px; font-weight: bold; color: #667eea;');
+
+// ============================================
+// PARTICLE SYSTEM (Same as Schedule)
+// ============================================
+class ParticleSystem {
+    constructor(canvasId) {
+        this.canvas = document.getElementById(canvasId);
+        if (!this.canvas) return;
+
+        this.ctx = this.canvas.getContext('2d');
+        this.particles = [];
+        this.particleCount = Math.min(150, Math.floor(window.innerWidth / 8));
+        this.mouse = { x: null, y: null, radius: 180 };
+        this.connectionDistance = 120;
+        this.animationId = null;
+        this.isDestroyed = false;
+
+        this.resize();
+        this.init();
+        this.animate();
+
+        this.resizeHandler = () => this.resize();
+        this.mouseMoveHandler = (e) => {
+            this.mouse.x = e.clientX;
+            this.mouse.y = e.clientY;
+        };
+        this.mouseLeaveHandler = () => {
+            this.mouse.x = null;
+            this.mouse.y = null;
+        };
+
+        window.addEventListener('resize', this.resizeHandler);
+        window.addEventListener('mousemove', this.mouseMoveHandler);
+        document.addEventListener('mouseleave', this.mouseLeaveHandler);
+    }
+
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+        this.particleCount = Math.min(150, Math.floor(window.innerWidth / 8));
+    }
+
+    init() {
+        this.particles = [];
+        const colors = [
+            'rgba(102, 126, 234, ',
+            'rgba(118, 75, 162, ',
+            'rgba(240, 147, 251, ',
+            'rgba(79, 172, 254, '
+        ];
+
+        for (let i = 0; i < this.particleCount; i++) {
+            const baseColor = colors[Math.floor(Math.random() * colors.length)];
+            this.particles.push({
+                x: Math.random() * this.canvas.width,
+                y: Math.random() * this.canvas.height,
+                size: Math.random() * 3 + 1,
+                baseSize: Math.random() * 3 + 1,
+                speedX: (Math.random() - 0.5) * 0.8,
+                speedY: (Math.random() - 0.5) * 0.8,
+                baseColor: baseColor,
+                opacity: Math.random() * 0.5 + 0.3
+            });
+        }
+    }
+
+    animate() {
+        if (this.isDestroyed) return;
+
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.particles.forEach((particle, index) => {
+            particle.x += particle.speedX;
+            particle.y += particle.speedY;
+
+            if (particle.x > this.canvas.width || particle.x < 0) particle.speedX *= -1;
+            if (particle.y > this.canvas.height || particle.y < 0) particle.speedY *= -1;
+
+            if (this.mouse.x !== null && this.mouse.y !== null) {
+                const dx = this.mouse.x - particle.x;
+                const dy = this.mouse.y - particle.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < this.mouse.radius) {
+                    const force = (this.mouse.radius - distance) / this.mouse.radius;
+                    const angle = Math.atan2(dy, dx);
+                    particle.x -= Math.cos(angle) * force * 3;
+                    particle.y -= Math.sin(angle) * force * 3;
+                    particle.size = particle.baseSize * (1 + force * 0.5);
+                } else {
+                    particle.size += (particle.baseSize - particle.size) * 0.1;
+                }
+            } else {
+                particle.size = particle.baseSize;
+            }
+
+            this.ctx.beginPath();
+            this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+
+            const gradient = this.ctx.createRadialGradient(
+                particle.x, particle.y, 0,
+                particle.x, particle.y, particle.size * 3
+            );
+            gradient.addColorStop(0, particle.baseColor + particle.opacity + ')');
+            gradient.addColorStop(1, particle.baseColor + '0)');
+
+            this.ctx.fillStyle = gradient;
+            this.ctx.fill();
+
+            for (let j = index + 1; j < this.particles.length; j++) {
+                const other = this.particles[j];
+                const dx2 = other.x - particle.x;
+                const dy2 = other.y - particle.y;
+                const distance2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+
+                if (distance2 < this.connectionDistance) {
+                    const opacity = (1 - distance2 / this.connectionDistance) * 0.3;
+                    this.ctx.beginPath();
+                    this.ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+                    this.ctx.lineWidth = 1;
+                    this.ctx.moveTo(particle.x, particle.y);
+                    this.ctx.lineTo(other.x, other.y);
+                    this.ctx.stroke();
+                }
+            }
+        });
+
+        this.animationId = requestAnimationFrame(() => this.animate());
+    }
+
+    destroy() {
+        this.isDestroyed = true;
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+        }
+        window.removeEventListener('resize', this.resizeHandler);
+        window.removeEventListener('mousemove', this.mouseMoveHandler);
+        document.removeEventListener('mouseleave', this.mouseLeaveHandler);
+        this.particles = [];
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+}
+
+// Initialize particle system when DOM is ready
+let weatherParticles = null;
+document.addEventListener('DOMContentLoaded', () => {
+    weatherParticles = new ParticleSystem('particles');
+});
+
+// ============================================
+// WEATHER WIDGET
+// ============================================
+
 class WeatherWidget {
     static instance = null;
 
@@ -711,158 +865,140 @@ class WeatherWidget {
     renderCurrentWeather() {
         const currentEl = document.getElementById('currentWeather');
         if (!currentEl || !this.currentWeather) return;
-        
+
         const sunrise = new Date(this.currentWeather.sunrise * 1000);
         const sunset = new Date(this.currentWeather.sunset * 1000);
         const now = new Date();
         const isDaytime = now >= sunrise && now <= sunset;
-        
+
+        // Compact hero-style current weather (like schedule greeting)
         currentEl.innerHTML = `
-            <div class="current-weather-display">
-                <div class="weather-main">
-                    <div class="weather-icon-large">${this.getWeatherEmoji(this.currentWeather.condition, isDaytime)}</div>
-                    <div class="temperature-display">${this.currentWeather.temperature}°</div>
-                    <div class="weather-description">${this.currentWeather.description}</div>
-                    <div class="feels-like">Feels like ${this.currentWeather.feels_like}°C</div>
-                </div>
-                
-                <div class="weather-details-grid">
-                    <div class="detail-card">
-                        <div class="detail-icon">💧</div>
-                        <div class="detail-label">Humidity</div>
-                        <div class="detail-value">${this.currentWeather.humidity}%</div>
-                    </div>
-                    <div class="detail-card">
-                        <div class="detail-icon">💨</div>
-                        <div class="detail-label">Wind</div>
-                        <div class="detail-value">${this.currentWeather.wind_speed} km/h</div>
-                        <div class="wind-direction-indicator">
-                            <div class="wind-arrow" style="transform: rotate(${this.currentWeather.wind_direction}deg)">↑</div>
-                            <div class="wind-compass">
-                                <span class="compass-label n">N</span>
-                                <span class="compass-label e">E</span>
-                                <span class="compass-label s">S</span>
-                                <span class="compass-label w">W</span>
-                            </div>
-                        </div>
-                        ${this.currentWeather.wind_gust ? `<div style="font-size: 0.85rem; color: rgba(255,255,255,0.7); margin-top: 4px;">Gusts: ${this.currentWeather.wind_gust} km/h</div>` : ''}
-                    </div>
-                    <div class="detail-card">
-                        <div class="detail-icon">☁️</div>
-                        <div class="detail-label">Cloud Cover</div>
-                        <div class="detail-value">${this.currentWeather.clouds}%</div>
-                    </div>
-                    <div class="detail-card">
-                        <div class="detail-icon">👁️</div>
-                        <div class="detail-label">Visibility</div>
-                        <div class="detail-value">${this.currentWeather.visibility} km</div>
-                    </div>
-                    <div class="detail-card">
-                        <div class="detail-icon">🌡️</div>
-                        <div class="detail-label">Pressure</div>
-                        <div class="detail-value">${this.currentWeather.pressure} hPa</div>
-                    </div>
-                    <div class="detail-card">
-                        <div class="detail-icon">🌅</div>
-                        <div class="detail-label">Sunrise</div>
-                        <div class="detail-value">${sunrise.toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'})}</div>
-                    </div>
-                    <div class="detail-card">
-                        <div class="detail-icon">🌇</div>
-                        <div class="detail-label">Sunset</div>
-                        <div class="detail-value">${sunset.toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'})}</div>
-                    </div>
-                    <div class="detail-card">
-                        <div class="detail-icon">🌡️</div>
-                        <div class="detail-label">High / Low</div>
-                        <div class="detail-value">${this.currentWeather.temp_max}° / ${this.currentWeather.temp_min}°</div>
-                    </div>
+            <div class="weather-display">
+                <div class="weather-icon-main">${this.getWeatherEmoji(this.currentWeather.condition, isDaytime)}</div>
+                <div class="weather-temp">${this.currentWeather.temperature}°</div>
+                <div class="weather-desc">${this.currentWeather.description}</div>
+                <div class="weather-feels">Feels like ${this.currentWeather.feels_like}°C</div>
+                <div class="weather-location">
+                    <span>📍</span>
+                    <span>${this.location?.city || 'Current Location'}</span>
                 </div>
             </div>
         `;
-        
-        const cards = currentEl.querySelectorAll('.detail-card');
-        cards.forEach((card, index) => {
-            card.style.animationDelay = `${index * 0.05}s`;
-        });
+
+        // Show quick actions
+        const actionsEl = document.getElementById('weatherActions');
+        if (actionsEl) actionsEl.style.display = 'flex';
+
+        // Update stats bar
+        this.updateStatsBar();
+    }
+
+    updateStatsBar() {
+        const statsEl = document.getElementById('weatherStats');
+        if (!statsEl || !this.currentWeather) return;
+        statsEl.style.display = 'block';
     }
     
     renderWeeklyForecast() {
         const forecastEl = document.getElementById('weeklyForecast');
         if (!forecastEl || !this.forecast || this.forecast.length === 0) return;
-        
+
         const html = this.forecast.map((day, index) => `
-            <div class="forecast-card" 
+            <div class="note-card"
                  onclick="WeatherWidget.getInstance().showDayDetail('${day.date}')"
                  style="animation-delay: ${index * 0.05}s">
-                <div class="forecast-card-header">
-                    <div class="forecast-day">${this.formatDayName(day.day_name, index)}</div>
-                    <div class="forecast-date">${this.formatDate(day.date)}</div>
-                </div>
+                <div class="forecast-day">${this.formatDayName(day.day_name, index)}</div>
+                <div class="forecast-date">${this.formatDate(day.date)}</div>
                 <div class="forecast-icon">${this.getWeatherEmoji(day.condition)}</div>
                 <div class="forecast-temps">
                     <span class="temp-high">${day.temp_max}°</span>
-                    <span class="temp-divider">/</span>
                     <span class="temp-low">${day.temp_min}°</span>
                 </div>
                 <div class="forecast-condition">${day.description}</div>
-                <div class="forecast-details">
-                    <div class="detail-item">
-                        <span class="detail-item-icon">💧</span>
-                        <span class="detail-item-value">${day.precipitation}%</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-item-icon">💨</span>
-                        <span class="detail-item-value">${day.wind_speed} km/h</span>
-                    </div>
-                </div>
-                <div class="forecast-card-glow"></div>
             </div>
         `).join('');
-        
+
         forecastEl.innerHTML = html;
+    }
+
+    setView(view) {
+        const forecastEl = document.getElementById('weeklyForecast');
+        const buttons = document.querySelectorAll('.filter-btn[data-view]');
+
+        buttons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.view === view);
+        });
+
+        if (forecastEl) {
+            forecastEl.classList.toggle('list-view', view === 'list');
+        }
     }
     
     renderHourlyForecast() {
         const hourlyEl = document.getElementById('hourlyForecast');
         if (!hourlyEl || !this.hourlyForecast.length) return;
-        
+
         const html = this.hourlyForecast.map((hour, index) => `
             <div class="hourly-card" style="animation-delay: ${index * 0.03}s">
                 <div class="hourly-time">${hour.time}</div>
                 <div class="hourly-icon">${this.getWeatherEmoji(hour.condition)}</div>
                 <div class="hourly-temp">${hour.temperature}°</div>
-                <div class="hourly-precip">
-                    <span class="precip-icon">💧</span>
-                    <span class="precip-value">${hour.precipitation}%</span>
-                </div>
             </div>
         `).join('');
-        
+
         hourlyEl.innerHTML = html;
+    }
+
+    toggleUnits() {
+        // Toggle between Celsius and Fahrenheit
+        this.useFahrenheit = !this.useFahrenheit;
+        if (this.location) {
+            this.refresh();
+        }
+    }
+
+    shareWeather() {
+        if (!this.currentWeather || !this.location) return;
+
+        const text = `Weather in ${this.location.city || 'your location'}: ${this.currentWeather.temperature}°C, ${this.currentWeather.description}`;
+
+        if (navigator.share) {
+            navigator.share({ title: 'Weather', text });
+        } else {
+            navigator.clipboard.writeText(text);
+            this.showNotification('Weather copied to clipboard!', 'success');
+        }
+    }
+
+    showNotification(message, type = 'info') {
+        const alertsEl = document.getElementById('weatherAlerts');
+        if (!alertsEl) return;
+
+        const alert = document.createElement('div');
+        alert.className = `weather-alert alert-${type}`;
+        alert.innerHTML = `<span>${message}</span>`;
+        alertsEl.appendChild(alert);
+
+        setTimeout(() => alert.remove(), 3000);
     }
     
     renderInsights() {
         const insightsEl = document.getElementById('weatherInsights');
+        const sectionEl = document.getElementById('insightsSection');
         if (!insightsEl) return;
-        
+
         const insights = this.generateInsights();
-        
+
         if (insights.length === 0) {
-            insightsEl.innerHTML = `
-                <div class="insight-card">
-                    <div class="insight-header">
-                        <div class="insight-icon">ℹ️</div>
-                        <div class="insight-title">No insights available</div>
-                    </div>
-                    <div class="insight-body">Check back later for AI-powered weather insights.</div>
-                </div>
-            `;
+            if (sectionEl) sectionEl.style.display = 'none';
             return;
         }
-        
+
+        if (sectionEl) sectionEl.style.display = 'block';
+
         const html = insights.map((insight, index) => `
             <div class="insight-card" style="animation-delay: ${index * 0.1}s">
+                <button class="insight-close" onclick="this.parentElement.remove(); WeatherWidget.getInstance().checkInsightsEmpty();">✕</button>
                 <div class="insight-header">
                     <div class="insight-icon">${insight.icon}</div>
                     <div class="insight-title">${insight.title}</div>
@@ -870,42 +1006,58 @@ class WeatherWidget {
                 <div class="insight-body">${insight.body}</div>
             </div>
         `).join('');
-        
+
         insightsEl.innerHTML = html;
+    }
+
+    checkInsightsEmpty() {
+        const insightsEl = document.getElementById('weatherInsights');
+        const sectionEl = document.getElementById('insightsSection');
+        if (insightsEl && sectionEl && insightsEl.children.length === 0) {
+            sectionEl.style.display = 'none';
+        }
     }
     
     renderWeatherDetails() {
-        const detailsEl = document.getElementById('weatherDetails');
-        if (!detailsEl || !this.currentWeather) return;
-        
+        if (!this.currentWeather) return;
+
         const sunrise = new Date(this.currentWeather.sunrise * 1000);
         const sunset = new Date(this.currentWeather.sunset * 1000);
-        const daylightMinutes = Math.round((sunset - sunrise) / 1000 / 60);
-        const daylightHours = Math.floor(daylightMinutes / 60);
-        const daylightMins = daylightMinutes % 60;
-        
-        detailsEl.innerHTML = `
-            <div class="detail-card">
-                <div class="detail-icon">🌅</div>
-                <div class="detail-label">Daylight</div>
-                <div class="detail-value">${daylightHours}h ${daylightMins}m</div>
-            </div>
-            <div class="detail-card">
-                <div class="detail-icon">🧭</div>
-                <div class="detail-label">Wind Direction</div>
-                <div class="detail-value">${this.getWindDirection(this.currentWeather.wind_direction)}</div>
-            </div>
-            <div class="detail-card">
-                <div class="detail-icon">🌡️</div>
-                <div class="detail-label">Dew Point</div>
-                <div class="detail-value">${this.calculateDewPoint(this.currentWeather.temperature, this.currentWeather.humidity)}°C</div>
-            </div>
-            <div class="detail-card">
-                <div class="detail-icon">🌫️</div>
-                <div class="detail-label">Cloud Type</div>
-                <div class="detail-value">${this.getCloudType(this.currentWeather.clouds)}</div>
-            </div>
-        `;
+
+        // Update temperature range from forecast
+        const todayTempsEl = document.getElementById('todayTemps');
+        if (todayTempsEl && this.forecast && this.forecast[0]) {
+            const today = this.forecast[0];
+            todayTempsEl.innerHTML = `
+                <span class="temp-hi">${today.temp_max}°</span>
+                <span class="temp-sep">/</span>
+                <span class="temp-lo">${today.temp_min}°</span>
+            `;
+        }
+
+        // Update stat cards
+        this.updateStatCard('statHumidity', `${this.currentWeather.humidity}%`);
+        this.updateStatCard('statWind', `${this.currentWeather.wind_speed} km/h`);
+        this.updateStatCard('statVisibility', `${this.currentWeather.visibility} km`);
+        this.updateStatCard('statPressure', `${this.currentWeather.pressure} hPa`);
+        this.updateStatCard('statUV', this.currentWeather.clouds < 30 ? 'High' : 'Low');
+        this.updateStatCard('statSunrise', sunrise.toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'}));
+        this.updateStatCard('statSunset', sunset.toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'}));
+
+        // Rain chance from forecast
+        if (this.forecast && this.forecast[0]) {
+            this.updateStatCard('statRain', `${this.forecast[0].precipitation || 0}%`);
+        }
+    }
+
+    updateStatCard(id, value) {
+        const el = document.getElementById(id);
+        if (el) {
+            const valueEl = el.querySelector('.stat-value');
+            if (valueEl) {
+                valueEl.textContent = value;
+            }
+        }
     }
     
     generateInsights() {
@@ -1161,15 +1313,17 @@ class WeatherWidget {
                                 <div class="dhc-icon">${this.getWeatherEmoji(hour.condition)}</div>
                                 <div class="dhc-temp">${hour.temperature}°</div>
                                 <div class="dhc-details">
-                                    <div class="dhc-detail"><span>Feels Like</span><span>${hour.feels_like}°</span></div>
+                                    <div class="dhc-detail"><span>🌡️ Feels Like</span><span>${hour.feels_like}°</span></div>
                                     <div class="dhc-detail"><span>💧 Humidity</span><span>${hour.humidity}%</span></div>
-                                    <div class="dhc-detail"><span>💨 Wind</span><span>${hour.wind_speed} km/h</span></div>
-                                    <div class="dhc-detail"><span>🧭 Direction</span><span>${this.getWindDirection(hour.wind_direction)}</span></div>
+                                    <div class="dhc-detail"><span>💨 Wind</span><span>${hour.wind_speed} km/h ${this.getWindDirection(hour.wind_direction)}</span></div>
                                     ${hour.wind_gust ? `<div class="dhc-detail"><span>💨 Gusts</span><span>${hour.wind_gust} km/h</span></div>` : ''}
-                                    <div class="dhc-detail"><span>🌧️ Rain</span><span>${hour.precipitation}%</span></div>
+                                    <div class="dhc-detail"><span>🌧️ Rain Chance</span><span>${hour.precipitation}%</span></div>
+                                    ${hour.rain_mm > 0 ? `<div class="dhc-detail"><span>☔ Rain</span><span>${hour.rain_mm} mm</span></div>` : ''}
+                                    ${hour.snow_mm > 0 ? `<div class="dhc-detail"><span>❄️ Snow</span><span>${hour.snow_mm} mm</span></div>` : ''}
                                     <div class="dhc-detail"><span>☁️ Clouds</span><span>${hour.clouds}%</span></div>
                                     <div class="dhc-detail"><span>👁️ Visibility</span><span>${hour.visibility} km</span></div>
                                     <div class="dhc-detail"><span>🌡️ Pressure</span><span>${hour.pressure} hPa</span></div>
+                                    ${hour.dew_point !== undefined ? `<div class="dhc-detail"><span>💦 Dew Point</span><span>${hour.dew_point}°</span></div>` : ''}
                                 </div>
                             </div>
                         `).join('')}
