@@ -132,16 +132,17 @@ public function login(string $email, string $password): array {
             
             $stmt = $this->db->prepare("
                 INSERT INTO users (
-                    family_id, 
-                    role, 
-                    email, 
-                    password_hash, 
-                    full_name, 
+                    family_id,
+                    role,
+                    email,
+                    password_hash,
+                    full_name,
                     avatar_color,
                     location_sharing,
+                    location_tracking_mode,
                     status,
                     created_at
-                ) VALUES (?, 'owner', ?, ?, ?, ?, 1, 'active', NOW())
+                ) VALUES (?, 'owner', ?, ?, ?, ?, 1, 'always', 'active', NOW())
             ");
             $stmt->execute([
                 $familyId,
@@ -235,16 +236,17 @@ public function login(string $email, string $password): array {
         
         $stmt = $this->db->prepare("
             INSERT INTO users (
-                family_id, 
-                role, 
-                email, 
-                password_hash, 
-                full_name, 
+                family_id,
+                role,
+                email,
+                password_hash,
+                full_name,
                 avatar_color,
                 location_sharing,
+                location_tracking_mode,
                 status,
                 created_at
-            ) VALUES (?, 'member', ?, ?, ?, ?, 1, 'active', NOW())
+            ) VALUES (?, 'member', ?, ?, ?, ?, 1, 'always', 'active', NOW())
         ");
         $stmt->execute([
             $family['id'],
