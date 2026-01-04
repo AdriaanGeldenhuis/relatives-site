@@ -790,7 +790,7 @@ body {
 
 .alerts-container {
     position: fixed;
-    bottom: var(--space-lg);
+    bottom: 100px;
     right: var(--space-lg);
     max-width: 350px;
     z-index: 1000;
@@ -1120,12 +1120,12 @@ body {
     .forecast-icon { font-size: 2rem; }
     .temp-high { font-size: 1.25rem; }
 
-    .alerts-container { left: var(--space-md); right: var(--space-md); max-width: none; }
+    .alerts-container { left: var(--space-md); right: var(--space-md); max-width: none; bottom: 90px; }
 }
 
 @media (min-width: 640px) {
     .detail-chip { flex: 1 1 calc(33.333% - var(--space-sm)); }
-    .alerts-container { bottom: var(--space-xl); right: var(--space-xl); }
+    .alerts-container { bottom: 100px; right: var(--space-xl); }
 }
 
 @media (min-width: 1024px) {
