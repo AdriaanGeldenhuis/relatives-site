@@ -2,17 +2,69 @@
  * ============================================
  * RELATIVES v3.0 - WEATHER CENTER
  * AUTO-LOADS CURRENT LOCATION ON PAGE LOAD
+ * ENHANCED LOCATION SEARCH WITH AUTOCOMPLETE
  * ============================================
  */
 
 class WeatherWidget {
     static instance = null;
-    
+
+    // Popular South African cities for fuzzy autocomplete
+    static POPULAR_CITIES = [
+        { name: 'Johannesburg', state: 'Gauteng', country: 'ZA', lat: -26.2041, lon: 28.0473 },
+        { name: 'Cape Town', state: 'Western Cape', country: 'ZA', lat: -33.9249, lon: 18.4241 },
+        { name: 'Durban', state: 'KwaZulu-Natal', country: 'ZA', lat: -29.8587, lon: 31.0218 },
+        { name: 'Pretoria', state: 'Gauteng', country: 'ZA', lat: -25.7461, lon: 28.1881 },
+        { name: 'Port Elizabeth', state: 'Eastern Cape', country: 'ZA', lat: -33.9608, lon: 25.6022 },
+        { name: 'Bloemfontein', state: 'Free State', country: 'ZA', lat: -29.0852, lon: 26.1596 },
+        { name: 'East London', state: 'Eastern Cape', country: 'ZA', lat: -33.0153, lon: 27.9116 },
+        { name: 'Kimberley', state: 'Northern Cape', country: 'ZA', lat: -28.7282, lon: 24.7499 },
+        { name: 'Polokwane', state: 'Limpopo', country: 'ZA', lat: -23.9045, lon: 29.4689 },
+        { name: 'Nelspruit', state: 'Mpumalanga', country: 'ZA', lat: -25.4653, lon: 30.9785 },
+        { name: 'Pietermaritzburg', state: 'KwaZulu-Natal', country: 'ZA', lat: -29.6006, lon: 30.3794 },
+        { name: 'Rustenburg', state: 'North West', country: 'ZA', lat: -25.6668, lon: 27.2419 },
+        { name: 'George', state: 'Western Cape', country: 'ZA', lat: -33.9631, lon: 22.4617 },
+        { name: 'Stellenbosch', state: 'Western Cape', country: 'ZA', lat: -33.9346, lon: 18.8668 },
+        { name: 'Sandton', state: 'Gauteng', country: 'ZA', lat: -26.1076, lon: 28.0567 },
+        { name: 'Soweto', state: 'Gauteng', country: 'ZA', lat: -26.2227, lon: 27.8577 },
+        { name: 'Centurion', state: 'Gauteng', country: 'ZA', lat: -25.8603, lon: 28.1894 },
+        { name: 'Benoni', state: 'Gauteng', country: 'ZA', lat: -26.1887, lon: 28.3211 },
+        { name: 'Roodepoort', state: 'Gauteng', country: 'ZA', lat: -26.1625, lon: 27.8728 },
+        { name: 'Midrand', state: 'Gauteng', country: 'ZA', lat: -25.9891, lon: 28.1268 },
+        { name: 'Vereeniging', state: 'Gauteng', country: 'ZA', lat: -26.6736, lon: 27.9318 },
+        { name: 'Welkom', state: 'Free State', country: 'ZA', lat: -27.9778, lon: 26.7358 },
+        { name: 'Richards Bay', state: 'KwaZulu-Natal', country: 'ZA', lat: -28.7807, lon: 32.0383 },
+        { name: 'Vanderbijlpark', state: 'Gauteng', country: 'ZA', lat: -26.7117, lon: 27.8381 },
+        { name: 'Krugersdorp', state: 'Gauteng', country: 'ZA', lat: -26.1027, lon: 27.7666 },
+        { name: 'Upington', state: 'Northern Cape', country: 'ZA', lat: -28.4478, lon: 21.2561 },
+        { name: 'Paarl', state: 'Western Cape', country: 'ZA', lat: -33.7342, lon: 18.9622 },
+        { name: 'Potchefstroom', state: 'North West', country: 'ZA', lat: -26.7145, lon: 27.0970 },
+        { name: 'Witbank', state: 'Mpumalanga', country: 'ZA', lat: -25.8708, lon: 29.2347 },
+        { name: 'Klerksdorp', state: 'North West', country: 'ZA', lat: -26.8667, lon: 26.6667 },
+        { name: 'Alberton', state: 'Gauteng', country: 'ZA', lat: -26.2678, lon: 28.1222 },
+        { name: 'Boksburg', state: 'Gauteng', country: 'ZA', lat: -26.2123, lon: 28.2555 },
+        { name: 'Germiston', state: 'Gauteng', country: 'ZA', lat: -26.2155, lon: 28.1676 },
+        { name: 'Randburg', state: 'Gauteng', country: 'ZA', lat: -26.0936, lon: 28.0064 },
+        { name: 'Springs', state: 'Gauteng', country: 'ZA', lat: -26.2547, lon: 28.4428 },
+        { name: 'Uitenhage', state: 'Eastern Cape', country: 'ZA', lat: -33.7667, lon: 25.4000 },
+        { name: 'Newcastle', state: 'KwaZulu-Natal', country: 'ZA', lat: -27.7500, lon: 29.9333 },
+        { name: 'Grahamstown', state: 'Eastern Cape', country: 'ZA', lat: -33.3042, lon: 26.5312 },
+        { name: 'Knysna', state: 'Western Cape', country: 'ZA', lat: -34.0356, lon: 23.0488 },
+        { name: 'Hermanus', state: 'Western Cape', country: 'ZA', lat: -34.4187, lon: 19.2345 },
+        { name: 'Mossel Bay', state: 'Western Cape', country: 'ZA', lat: -34.1830, lon: 22.1458 },
+        { name: 'Worcester', state: 'Western Cape', country: 'ZA', lat: -33.6461, lon: 19.4483 },
+        { name: 'Franschhoek', state: 'Western Cape', country: 'ZA', lat: -33.9133, lon: 19.1200 },
+        { name: 'Oudtshoorn', state: 'Western Cape', country: 'ZA', lat: -33.5878, lon: 22.2015 },
+        { name: 'Somerset West', state: 'Western Cape', country: 'ZA', lat: -34.0849, lon: 18.8506 },
+        { name: 'Ballito', state: 'KwaZulu-Natal', country: 'ZA', lat: -29.5390, lon: 31.2140 },
+        { name: 'Umhlanga', state: 'KwaZulu-Natal', country: 'ZA', lat: -29.7256, lon: 31.0856 }
+    ];
+
     constructor() {
         if (WeatherWidget.instance) {
             return WeatherWidget.instance;
         }
-        
+
         this.location = null;
         this.currentWeather = null;
         this.forecast = [];
@@ -21,7 +73,7 @@ class WeatherWidget {
         this.cacheTimeout = 10 * 60 * 1000;
         this.searchTimeout = null;
         this.locationAttempted = false;
-        
+
         WeatherWidget.instance = this;
         this.init();
     }
@@ -222,26 +274,61 @@ class WeatherWidget {
     setupLocationSearch() {
         const searchInput = document.getElementById('locationSearch');
         const searchResults = document.getElementById('searchResults');
-        
+
         if (!searchInput) return;
-        
+
+        // Handle keyboard navigation
+        let selectedIndex = -1;
+
         searchInput.addEventListener('input', (e) => {
             const query = e.target.value.trim();
-            
+            selectedIndex = -1;
+
             clearTimeout(this.searchTimeout);
-            
-            if (query.length < 2) {
+
+            if (query.length < 1) {
                 if (searchResults) {
                     searchResults.style.display = 'none';
                 }
                 return;
             }
-            
-            this.searchTimeout = setTimeout(() => {
-                this.searchLocation(query);
-            }, 300);
+
+            // Show local results immediately (no delay)
+            const localResults = this.fuzzySearchLocal(query);
+            if (localResults.length > 0) {
+                this.renderSearchResults(localResults, query, true);
+            }
+
+            // Then fetch API results with short delay
+            if (query.length >= 2) {
+                this.searchTimeout = setTimeout(() => {
+                    this.searchLocation(query, localResults);
+                }, 150);
+            }
         });
-        
+
+        // Keyboard navigation
+        searchInput.addEventListener('keydown', (e) => {
+            const items = searchResults.querySelectorAll('.search-result-item:not(.no-results)');
+            if (!items.length) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                this.highlightSearchItem(items, selectedIndex);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, 0);
+                this.highlightSearchItem(items, selectedIndex);
+            } else if (e.key === 'Enter' && selectedIndex >= 0) {
+                e.preventDefault();
+                items[selectedIndex].click();
+            } else if (e.key === 'Escape') {
+                searchResults.style.display = 'none';
+                selectedIndex = -1;
+            }
+        });
+
         document.addEventListener('click', (e) => {
             if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
                 if (searchResults) {
@@ -250,49 +337,179 @@ class WeatherWidget {
             }
         });
     }
-    
-    async searchLocation(query) {
+
+    highlightSearchItem(items, index) {
+        items.forEach((item, i) => {
+            item.classList.toggle('highlighted', i === index);
+        });
+        if (items[index]) {
+            items[index].scrollIntoView({ block: 'nearest' });
+        }
+    }
+
+    // Fuzzy search through local cities database
+    fuzzySearchLocal(query) {
+        const lowerQuery = query.toLowerCase();
+        const results = [];
+
+        for (const city of WeatherWidget.POPULAR_CITIES) {
+            const lowerName = city.name.toLowerCase();
+            const lowerState = city.state.toLowerCase();
+
+            // Calculate fuzzy match score
+            let score = 0;
+
+            // Exact start match (highest priority)
+            if (lowerName.startsWith(lowerQuery)) {
+                score = 100 - lowerName.length; // Shorter names rank higher
+            }
+            // Contains match
+            else if (lowerName.includes(lowerQuery)) {
+                score = 50;
+            }
+            // State match
+            else if (lowerState.includes(lowerQuery)) {
+                score = 30;
+            }
+            // Fuzzy character match (handles typos)
+            else if (this.fuzzyMatch(lowerQuery, lowerName)) {
+                score = 20;
+            }
+
+            if (score > 0) {
+                results.push({
+                    ...city,
+                    score,
+                    display: `${city.name}, ${city.state}, South Africa`,
+                    isLocal: true
+                });
+            }
+        }
+
+        // Sort by score (highest first) and limit to 5
+        return results
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 5);
+    }
+
+    // Simple fuzzy matching for typo tolerance
+    fuzzyMatch(query, target) {
+        if (query.length < 2) return false;
+
+        let queryIndex = 0;
+        let matches = 0;
+
+        for (let i = 0; i < target.length && queryIndex < query.length; i++) {
+            if (target[i] === query[queryIndex]) {
+                matches++;
+                queryIndex++;
+            }
+        }
+
+        // Allow up to 2 missing characters for typo tolerance
+        return matches >= query.length - 2 && matches >= query.length * 0.6;
+    }
+
+    renderSearchResults(results, query, isLoading = false) {
         const searchResults = document.getElementById('searchResults');
         if (!searchResults) return;
-        
+
+        const lowerQuery = query.toLowerCase();
+
+        const html = results.map(result => {
+            // Highlight matching text
+            const highlightedName = this.highlightMatch(result.name, lowerQuery);
+            const locationIcon = result.isLocal ? '📍' : '🌍';
+
+            return `
+                <div class="search-result-item"
+                     data-lat="${result.lat}"
+                     data-lon="${result.lon}"
+                     data-name="${result.display || result.name}">
+                    <div class="result-icon">${locationIcon}</div>
+                    <div class="result-content">
+                        <div class="result-name">${highlightedName}</div>
+                        <div class="result-details">${result.state ? result.state + ', ' : ''}${result.country === 'ZA' ? 'South Africa' : result.country}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        const loadingIndicator = isLoading ? `
+            <div class="search-loading">
+                <span class="loading-dot"></span>
+                <span class="loading-dot"></span>
+                <span class="loading-dot"></span>
+            </div>
+        ` : '';
+
+        searchResults.innerHTML = html + loadingIndicator;
+        searchResults.style.display = 'block';
+
+        // Attach click handlers
+        searchResults.querySelectorAll('.search-result-item').forEach(item => {
+            item.addEventListener('click', () => {
+                this.selectLocation(
+                    parseFloat(item.dataset.lat),
+                    parseFloat(item.dataset.lon),
+                    item.dataset.name
+                );
+            });
+        });
+    }
+
+    highlightMatch(text, query) {
+        if (!query) return text;
+        const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        return text.replace(regex, '<mark>$1</mark>');
+    }
+
+    async searchLocation(query, localResults = []) {
+        const searchResults = document.getElementById('searchResults');
+        if (!searchResults) return;
+
         try {
             const response = await fetch(`/weather/api/api.php?action=search&q=${encodeURIComponent(query)}`);
             const data = await response.json();
-            
+
+            // Combine local and API results, removing duplicates
+            let allResults = [...localResults];
+
             if (data.results && data.results.length > 0) {
-                searchResults.innerHTML = data.results.map(result => `
-                    <div class="search-result-item" 
-                         data-lat="${result.lat}" 
-                         data-lon="${result.lon}"
-                         data-name="${result.display}">
-                        <div class="result-name">${result.name}</div>
-                        <div class="result-details">${result.state ? result.state + ', ' : ''}${result.country}</div>
-                    </div>
-                `).join('');
-                
-                searchResults.style.display = 'block';
-                
-                searchResults.querySelectorAll('.search-result-item').forEach(item => {
-                    item.addEventListener('click', () => {
-                        this.selectLocation(
-                            parseFloat(item.dataset.lat),
-                            parseFloat(item.dataset.lon),
-                            item.dataset.name
-                        );
-                    });
-                });
+                const localNames = new Set(localResults.map(r => r.name.toLowerCase()));
+
+                for (const result of data.results) {
+                    if (!localNames.has(result.name.toLowerCase())) {
+                        allResults.push({
+                            ...result,
+                            display: result.display,
+                            isLocal: false
+                        });
+                    }
+                }
+            }
+
+            if (allResults.length > 0) {
+                // Limit to 8 results total
+                this.renderSearchResults(allResults.slice(0, 8), query, false);
             } else {
                 searchResults.innerHTML = `
-                    <div class="search-result-item">
-                        <div class="result-name">No locations found</div>
-                        <div class="result-details">Try a different search term</div>
+                    <div class="search-result-item no-results">
+                        <div class="result-icon">🔍</div>
+                        <div class="result-content">
+                            <div class="result-name">No locations found</div>
+                            <div class="result-details">Try a different spelling or nearby city</div>
+                        </div>
                     </div>
                 `;
                 searchResults.style.display = 'block';
             }
         } catch (error) {
             console.error('Location search error:', error);
-            searchResults.style.display = 'none';
+            // Keep showing local results if API fails
+            if (localResults.length > 0) {
+                this.renderSearchResults(localResults, query, false);
+            }
         }
     }
     

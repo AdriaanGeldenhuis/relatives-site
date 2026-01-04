@@ -109,16 +109,17 @@ class FirebaseMessaging {
     
     /**
      * Send notification using FCM v1 API
+     * Returns: true = success, false = failed but token valid, 'invalid_token' = token should be removed
      */
-    public function send(string $token, array $notification, array $data = []): bool {
+    public function send(string $token, array $notification, array $data = []) {
         // Get access token
         $accessToken = $this->getAccessToken();
-        
+
         if (!$accessToken || !$this->projectId) {
             error_log('FCM: Cannot send - missing credentials');
             return $this->sendLegacy($token, $notification, $data);
         }
-        
+
         try {
             // Build FCM v1 message
             $message = [
@@ -148,10 +149,10 @@ class FirebaseMessaging {
                     ]
                 ]
             ];
-            
+
             // Send to FCM v1 API
             $url = "https://fcm.googleapis.com/v1/projects/{$this->projectId}/messages:send";
-            
+
             $ch = curl_init($url);
             curl_setopt_array($ch, [
                 CURLOPT_POST => true,
@@ -163,18 +164,33 @@ class FirebaseMessaging {
                 CURLOPT_POSTFIELDS => json_encode($message),
                 CURLOPT_TIMEOUT => 10
             ]);
-            
+
             $response = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
-            
+
             if ($httpCode === 200) {
                 return true;
             }
-            
+
+            // Check for invalid token errors - these tokens should be removed
+            $responseData = json_decode($response, true);
+            $errorCode = $responseData['error']['details'][0]['errorCode'] ?? '';
+            $errorStatus = $responseData['error']['status'] ?? '';
+
+            // Token is invalid/unregistered - should be deleted
+            if ($errorCode === 'UNREGISTERED' ||
+                $errorCode === 'INVALID_ARGUMENT' ||
+                $errorStatus === 'NOT_FOUND' ||
+                strpos($response, 'not a valid FCM') !== false ||
+                strpos($response, 'UNREGISTERED') !== false) {
+                error_log("FCM: Invalid token detected, marking for removal: $token");
+                return 'invalid_token';
+            }
+
             error_log("FCM v1 send failed: HTTP $httpCode - $response");
             return false;
-            
+
         } catch (Exception $e) {
             error_log("FCM send error: " . $e->getMessage());
             return false;
@@ -183,15 +199,16 @@ class FirebaseMessaging {
     
     /**
      * Legacy HTTP v1 fallback
+     * Returns: true = success, false = failed, 'invalid_token' = token should be removed
      */
-    private function sendLegacy(string $token, array $notification, array $data = []): bool {
+    private function sendLegacy(string $token, array $notification, array $data = []) {
         $serverKey = $_ENV['FCM_SERVER_KEY'] ?? null;
-        
+
         if (!$serverKey) {
             error_log('FCM: No server key available');
             return false;
         }
-        
+
         $payload = [
             'to' => $token,
             'notification' => $notification,
@@ -199,7 +216,7 @@ class FirebaseMessaging {
             'priority' => 'high',
             'content_available' => true
         ];
-        
+
         $ch = curl_init('https://fcm.googleapis.com/fcm/send');
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
@@ -211,16 +228,26 @@ class FirebaseMessaging {
             CURLOPT_POSTFIELDS => json_encode($payload),
             CURLOPT_TIMEOUT => 10
         ]);
-        
+
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
-        
+
         if ($httpCode === 200) {
             $result = json_decode($response, true);
+
+            // Check for invalid token in legacy response
+            if (isset($result['results'][0]['error'])) {
+                $error = $result['results'][0]['error'];
+                if (in_array($error, ['NotRegistered', 'InvalidRegistration', 'MismatchSenderId'])) {
+                    error_log("FCM Legacy: Invalid token detected: $error");
+                    return 'invalid_token';
+                }
+            }
+
             return !isset($result['failure']) || $result['failure'] === 0;
         }
-        
+
         return false;
     }
     
