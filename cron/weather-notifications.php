@@ -26,47 +26,55 @@ try {
     $triggers = new NotificationTriggers($db);
     $currentHour = (int)date('H');
     $currentMinute = (int)date('i');
+    $currentTimeHHMM = sprintf('%02d:%02d', $currentHour, $currentMinute);
 
-    // Build time patterns to match (handles different storage formats)
-    // Match: "07:30", "07:30:00", "7:30:00", etc.
-    $timePatterns = [
-        sprintf('%02d:%02d:00', $currentHour, $currentMinute),  // 07:30:00
-        sprintf('%02d:%02d', $currentHour, $currentMinute),      // 07:30
-        sprintf('%d:%02d:00', $currentHour, $currentMinute),     // 7:30:00
-        sprintf('%d:%02d', $currentHour, $currentMinute)         // 7:30
-    ];
+    echo "Current time: $currentTimeHHMM\n";
 
-    // Get users who need weather notification at this time
-    // Use TIME() function for more flexible matching
+    // Debug: Show all scheduled weather notifications
+    $debugStmt = $db->prepare("
+        SELECT wns.user_id, u.full_name,
+               TIME_FORMAT(wns.notification_time, '%H:%i') as scheduled_time,
+               wns.enabled, wns.last_sent
+        FROM weather_notification_schedule wns
+        JOIN users u ON wns.user_id = u.id
+        WHERE wns.enabled = 1
+        ORDER BY wns.notification_time
+    ");
+    $debugStmt->execute();
+    $allSchedules = $debugStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if (!empty($allSchedules)) {
+        echo "Active weather schedules:\n";
+        foreach ($allSchedules as $sched) {
+            $lastSent = $sched['last_sent'] ? date('Y-m-d', strtotime($sched['last_sent'])) : 'never';
+            echo "  - {$sched['full_name']}: {$sched['scheduled_time']} (last sent: $lastSent)\n";
+        }
+    } else {
+        echo "No active weather schedules found in database\n";
+    }
+
+    // Simple and reliable time matching using TIME_FORMAT
+    // This converts the TIME field to HH:MM format for exact comparison
     $stmt = $db->prepare("
         SELECT
             wns.user_id,
             wns.notification_time,
+            TIME_FORMAT(wns.notification_time, '%H:%i') as time_formatted,
             wns.voice_enabled,
             wns.include_forecast,
             u.full_name
         FROM weather_notification_schedule wns
         JOIN users u ON wns.user_id = u.id
         WHERE wns.enabled = 1
-          AND (
-              TIME(wns.notification_time) = TIME(?)
-              OR wns.notification_time IN (?, ?, ?, ?)
-              OR TIME_FORMAT(wns.notification_time, '%H:%i') = ?
-          )
+          AND TIME_FORMAT(wns.notification_time, '%H:%i') = ?
           AND (wns.last_sent IS NULL OR DATE(wns.last_sent) < CURDATE())
           AND u.status = 'active'
     ");
-    $timeFormatted = sprintf('%02d:%02d:00', $currentHour, $currentMinute);
-    $timeShort = sprintf('%02d:%02d', $currentHour, $currentMinute);
-    $stmt->execute([
-        $timeFormatted,
-        $timePatterns[0], $timePatterns[1], $timePatterns[2], $timePatterns[3],
-        $timeShort
-    ]);
+    $stmt->execute([$currentTimeHHMM]);
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     if (empty($users)) {
-        echo "No users scheduled for $timeShort\n";
+        echo "No users scheduled for $currentTimeHHMM\n";
         exit(0);
     }
     
