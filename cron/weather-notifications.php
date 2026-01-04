@@ -174,7 +174,7 @@ try {
                 'type' => NotificationManager::TYPE_WEATHER,
                 'title' => "Good Morning - Today's Weather",
                 'message' => $message,
-                'action_url' => '/weather/',
+                'action_url' => '/notifications/',
                 'priority' => NotificationManager::PRIORITY_LOW,
                 'icon' => $weatherData['weather'][0]['icon'] ?? '🌤️',
                 'vibrate' => 0,
