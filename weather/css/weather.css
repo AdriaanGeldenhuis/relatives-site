@@ -817,6 +817,44 @@ body {
 .alert-warning { border-color: #f5af19; background: rgba(245, 175, 25, 0.15); }
 .alert-info { border-color: #4facfe; background: rgba(79, 172, 254, 0.15); }
 
+.weather-alert {
+    position: relative;
+    display: flex;
+    gap: var(--space-sm);
+    padding-right: 40px;
+}
+
+.alert-icon { font-size: 1.5rem; flex-shrink: 0; }
+.alert-content { flex: 1; min-width: 0; }
+.alert-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; }
+.alert-message { font-size: 0.8rem; color: rgba(255, 255, 255, 0.8); line-height: 1.4; }
+
+.alert-close {
+    position: absolute !important;
+    top: 12px !important;
+    right: 12px !important;
+    left: auto !important;
+    bottom: auto !important;
+    background: var(--glass-light);
+    border: 1px solid var(--glass-border);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.alert-close:hover {
+    background: var(--glass-medium);
+    color: white;
+}
+
 /* ============================================
    MODAL
    ============================================ */
@@ -990,9 +1028,11 @@ body {
 }
 
 .insight-close {
-    position: absolute;
-    top: var(--space-sm);
-    right: var(--space-sm);
+    position: absolute !important;
+    top: 12px !important;
+    right: 12px !important;
+    left: auto !important;
+    bottom: auto !important;
     background: var(--glass-light);
     border: 1px solid var(--glass-border);
     border-radius: 50%;
@@ -1006,6 +1046,7 @@ body {
     align-items: center;
     justify-content: center;
     line-height: 1;
+    z-index: 10;
 }
 
 .insight-close:hover {
