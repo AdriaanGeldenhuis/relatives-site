@@ -162,26 +162,84 @@ try {
             break;
             
         case 'test':
-            // Send test notification
-            $stmt = $db->prepare("
-                INSERT INTO notifications 
-                (user_id, type, title, message, action_url, icon, created_at)
-                VALUES (?, 'system', ?, ?, '/notifications/', '🔔', NOW())
-            ");
-            
-            $title = 'Test Notification';
-            $message = 'This is a test notification sent at ' . date('g:i A');
-            
-            $stmt->execute([$userId, $title, $message]);
-            $notifId = $db->lastInsertId();
-            
+            // Send test notification with push via NotificationManager
+            require_once __DIR__ . '/../../core/NotificationManager.php';
+
+            $notifManager = NotificationManager::getInstance($db);
+
+            $notifId = $notifManager->create([
+                'user_id' => $userId,
+                'type' => NotificationManager::TYPE_SYSTEM,
+                'title' => 'Test Notification',
+                'message' => 'This is a test notification sent at ' . date('g:i A') . '. If you received this on your device, push notifications are working!',
+                'action_url' => '/notifications/',
+                'priority' => NotificationManager::PRIORITY_NORMAL,
+                'icon' => '🔔',
+                'vibrate' => 1,
+                'data' => [
+                    'test' => true,
+                    'timestamp' => time()
+                ]
+            ]);
+
             echo json_encode([
-                'success' => true,
+                'success' => $notifId ? true : false,
                 'notification_id' => $notifId,
-                'message' => 'Test notification sent successfully'
+                'message' => $notifId
+                    ? 'Test notification sent successfully (with push)'
+                    : 'Failed to send test notification'
             ]);
             break;
-            
+
+        case 'register_fcm_token':
+            // Register FCM token from native app
+            $token = trim($_POST['token'] ?? '');
+            $deviceType = $_POST['device_type'] ?? 'unknown';
+
+            if (empty($token)) {
+                throw new Exception('FCM token required');
+            }
+
+            // Remove any existing token for other users (device switched users)
+            $stmt = $db->prepare("DELETE FROM fcm_tokens WHERE token = ? AND user_id != ?");
+            $stmt->execute([$token, $userId]);
+
+            // Check if this token already exists for this user
+            $stmt = $db->prepare("SELECT id FROM fcm_tokens WHERE user_id = ? AND token = ?");
+            $stmt->execute([$userId, $token]);
+            $existing = $stmt->fetch();
+
+            if ($existing) {
+                // Update
+                $stmt = $db->prepare("UPDATE fcm_tokens SET device_type = ?, updated_at = NOW() WHERE id = ?");
+                $stmt->execute([$deviceType, $existing['id']]);
+            } else {
+                // Insert
+                $stmt = $db->prepare("
+                    INSERT INTO fcm_tokens (user_id, token, device_type, created_at, updated_at)
+                    VALUES (?, ?, ?, NOW(), NOW())
+                ");
+                $stmt->execute([$userId, $token, $deviceType]);
+            }
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'FCM token registered'
+            ]);
+            break;
+
+        case 'unregister_fcm_token':
+            // Remove FCM token (on logout)
+            $token = trim($_POST['token'] ?? '');
+
+            if (!empty($token)) {
+                $stmt = $db->prepare("DELETE FROM fcm_tokens WHERE user_id = ? AND token = ?");
+                $stmt->execute([$userId, $token]);
+            }
+
+            echo json_encode(['success' => true]);
+            break;
+
         default:
             throw new Exception('Invalid action');
     }

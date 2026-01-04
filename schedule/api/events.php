@@ -107,6 +107,17 @@ try {
 
             $eventId = $db->lastInsertId();
 
+            // SEND NOTIFICATION TO FAMILY
+            require_once __DIR__ . '/../../core/NotificationTriggers.php';
+            $triggers = new NotificationTriggers($db);
+            $triggers->onScheduleTaskCreated(
+                $eventId,
+                $user['id'],
+                $user['family_id'],
+                $title,
+                date('M j, Y \a\t g:i A', strtotime($startsAt))
+            );
+
             // Handle recurring events
             if ($repeatRule && in_array($repeatRule, ['daily', 'weekly', 'weekdays', 'monthly', 'yearly'])) {
                 $occurrences = $repeatRule === 'yearly' ? 5 : 10; // Less occurrences for yearly
@@ -653,6 +664,17 @@ try {
             $stmt = $db->prepare("SELECT * FROM events WHERE id = ?");
             $stmt->execute([$eventId]);
             $event = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            // SEND NOTIFICATION TO FAMILY
+            require_once __DIR__ . '/../../core/NotificationTriggers.php';
+            $triggers = new NotificationTriggers($db);
+            $triggers->onBirthdayCreated(
+                $eventId,
+                $user['id'],
+                $user['family_id'],
+                $name,
+                $startsAt
+            );
 
             echo json_encode([
                 'success' => true,
