@@ -192,72 +192,79 @@ require_once __DIR__ . '/../shared/components/header.php';
 
 <main class="main-content">
     <div class="container">
-        
-        <!-- Hero Section - Compact -->
-        <section class="hero-section">
+
+        <!-- Hero Section (Same as Schedule) -->
+        <div class="hero-section">
             <div class="greeting-card">
+                <div class="greeting-time"><?php echo date('l, F j, Y'); ?></div>
                 <h1 class="greeting-text">
                     <span class="greeting-icon">🔔</span>
-                    Notifications
+                    <span class="greeting-name">Notifications</span>
                 </h1>
-                
+                <p class="greeting-subtitle">Stay updated with your family activities</p>
+
                 <div class="quick-actions">
                     <?php if ($unreadCount > 0): ?>
                         <button onclick="markAllRead()" class="quick-action-btn">
                             <span class="qa-icon">✓</span>
-                            <span class="qa-text">Mark Read</span>
+                            <span>Mark Read</span>
                         </button>
                     <?php endif; ?>
                     <?php if (!empty($notifications)): ?>
                         <button onclick="showClearConfirm()" class="quick-action-btn">
                             <span class="qa-icon">🗑️</span>
-                            <span class="qa-text">Clear</span>
+                            <span>Clear</span>
                         </button>
                     <?php endif; ?>
                     <button onclick="showPreferences()" class="quick-action-btn">
                         <span class="qa-icon">⚙️</span>
-                        <span class="qa-text">Settings</span>
+                        <span>Settings</span>
                     </button>
                 </div>
             </div>
-        </section>
+        </div>
 
-        <!-- Unread Banner - Compact -->
-        <?php if ($unreadCount > 0): ?>
-        <div class="unread-banner glass-card">
-            <div class="unread-icon">🔔</div>
-            <div class="unread-text">
-                <strong><?php echo $unreadCount; ?></strong> unread
+        <!-- Filter Section (Same as Schedule) -->
+        <div class="search-filter-section">
+            <div class="filter-buttons">
+                <a href="?filter=all" class="filter-btn <?php echo $filter === 'all' ? 'active' : ''; ?>">
+                    <span>📋</span> All
+                </a>
+                <a href="?filter=unread" class="filter-btn <?php echo $filter === 'unread' ? 'active' : ''; ?>">
+                    <span>🔔</span> Unread
+                    <?php if ($unreadCount > 0): ?>
+                        <span class="filter-badge"><?php echo $unreadCount; ?></span>
+                    <?php endif; ?>
+                </a>
+                <a href="?filter=message" class="filter-btn <?php echo $filter === 'message' ? 'active' : ''; ?>">
+                    <span>💬</span> Messages
+                </a>
+                <a href="?filter=shopping" class="filter-btn <?php echo $filter === 'shopping' ? 'active' : ''; ?>">
+                    <span>🛒</span> Shopping
+                </a>
+                <a href="?filter=calendar" class="filter-btn <?php echo $filter === 'calendar' ? 'active' : ''; ?>">
+                    <span>📅</span> Calendar
+                </a>
+                <a href="?filter=schedule" class="filter-btn <?php echo $filter === 'schedule' ? 'active' : ''; ?>">
+                    <span>⏰</span> Schedule
+                </a>
+            </div>
+        </div>
+
+        <!-- Stats Bar (Same as Schedule week-stats-bar) -->
+        <?php if ($unreadCount > 0 || !empty($notifications)): ?>
+        <div class="week-stats-bar glass-card">
+            <div class="week-stats-title">Status:</div>
+            <div class="week-stats-chips">
+                <div class="stat-chip unread-chip">
+                    🔔 <?php echo $unreadCount; ?> unread
+                </div>
+                <div class="stat-chip total-chip">
+                    📋 <?php echo count($notifications); ?> total
+                </div>
             </div>
         </div>
         <?php endif; ?>
-
-        <!-- Filter Tabs - Compact -->
-        <div class="filter-tabs glass-card">
-            <a href="?filter=all" class="filter-tab <?php echo $filter === 'all' ? 'active' : ''; ?>">
-                <span class="tab-icon">📋</span>
-                <span class="tab-text">All</span>
-            </a>
-            <a href="?filter=unread" class="filter-tab <?php echo $filter === 'unread' ? 'active' : ''; ?>">
-                <span class="tab-icon">🔔</span>
-                <span class="tab-text">Unread</span>
-                <?php if ($unreadCount > 0): ?>
-                    <span class="tab-badge"><?php echo $unreadCount; ?></span>
-                <?php endif; ?>
-            </a>
-            <a href="?filter=message" class="filter-tab <?php echo $filter === 'message' ? 'active' : ''; ?>">
-                <span class="tab-icon">💬</span>
-            </a>
-            <a href="?filter=shopping" class="filter-tab <?php echo $filter === 'shopping' ? 'active' : ''; ?>">
-                <span class="tab-icon">🛒</span>
-            </a>
-            <a href="?filter=calendar" class="filter-tab <?php echo $filter === 'calendar' ? 'active' : ''; ?>">
-                <span class="tab-icon">📅</span>
-            </a>
-            <a href="?filter=tracking" class="filter-tab <?php echo $filter === 'tracking' ? 'active' : ''; ?>">
-                <span class="tab-icon">📍</span>
-            </a>
-        </div>
 
         <!-- Notifications Content -->
         <div class="notes-section">
