@@ -116,6 +116,18 @@ PREPARE stmt FROM @query;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- Add last_sent to weather_notification_schedule if missing
+SET @exist := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+               WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'weather_notification_schedule'
+               AND COLUMN_NAME = 'last_sent');
+SET @query := IF(@exist = 0,
+    'ALTER TABLE weather_notification_schedule ADD COLUMN last_sent DATETIME NULL AFTER include_forecast',
+    'SELECT 1');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 -- ============================================
 -- ENSURE INDEXES EXIST
 -- ============================================
