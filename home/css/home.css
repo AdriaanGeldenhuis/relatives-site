@@ -34,11 +34,11 @@
     --space-2xl: 36px;
     --space-3xl: 48px;
     
-    /* Border Radius */
-    --radius-sm: 10px;
-    --radius-md: 14px;
-    --radius-lg: 20px;
-    --radius-xl: 28px;
+    /* Border Radius (Matching Schedule) */
+    --radius-sm: 12px;
+    --radius-md: 16px;
+    --radius-lg: 24px;
+    --radius-xl: 32px;
     --radius-full: 9999px;
     
     /* Transitions */
@@ -166,11 +166,11 @@ body {
 }
 
 /* ============================================
-   HERO SECTION
+   HERO SECTION (Styled like Schedule)
    ============================================ */
 
 .hero-section {
-    margin-bottom: var(--space-2xl);
+    margin-bottom: var(--space-xl);
     animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
     position: relative;
     z-index: 1;
@@ -178,7 +178,7 @@ body {
 
 @keyframes fadeInUp {
     from {
-        transform: translateY(30px);
+        transform: translateY(40px);
         opacity: 0;
     }
     to {
@@ -192,12 +192,18 @@ body {
     backdrop-filter: blur(40px) saturate(180%);
     -webkit-backdrop-filter: blur(40px) saturate(180%);
     border: 1px solid var(--glass-border);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xl);
     padding: var(--space-xl);
     text-align: center;
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-xl);
     position: relative;
     overflow: hidden;
+    animation: heroFloat 6s ease-in-out infinite;
+}
+
+@keyframes heroFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
 }
 
 .greeting-card::before {
@@ -324,31 +330,56 @@ body {
 }
 
 /* ============================================
-   WEATHER WIDGET HOME (ENHANCED)
+   WEATHER WIDGET HOME (Styled like Schedule)
    ============================================ */
 
 .weather-widget-home {
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-    border-radius: var(--radius-lg);
+    background: var(--glass-medium);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-xl);
     padding: 0;
-    margin: var(--space-2xl) 0;
+    margin: var(--space-xl) 0;
     overflow: hidden;
     position: relative;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-xl);
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     opacity: 0;
     transform: translateY(20px);
+    animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards;
 }
 
 .weather-widget-home.loaded {
     opacity: 1;
     transform: translateY(0);
+    animation: weatherFloat 8s ease-in-out infinite;
+}
+
+@keyframes weatherFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
 }
 
 .weather-widget-home:active {
     transform: scale(0.98);
+}
+
+.weather-widget-home::before {
+    content: '';
+    position: absolute;
+    inset: -200%;
+    background: conic-gradient(
+        from 0deg,
+        transparent 0deg 330deg,
+        rgba(255, 255, 255, 0.1) 330deg 360deg
+    );
+    animation: weatherShine 8s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes weatherShine {
+    to { transform: rotate(360deg); }
 }
 
 .weather-widget-loading,
@@ -376,7 +407,9 @@ body {
 }
 
 .weather-widget-content {
-    padding: var(--space-lg);
+    position: relative;
+    z-index: 1;
+    padding: var(--space-xl);
     cursor: pointer;
     transition: background 0.3s ease;
 }
@@ -1706,8 +1739,11 @@ body {
     }
     
     .weather-widget-home:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 12px 48px rgba(102, 126, 234, 0.2);
+        transform: translateY(-8px);
+        box-shadow:
+            var(--shadow-xl),
+            0 0 60px rgba(102, 126, 234, 0.3);
+        border-color: rgba(255, 255, 255, 0.4);
     }
     
     .wwc-current {
