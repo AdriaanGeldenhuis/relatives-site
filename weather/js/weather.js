@@ -993,25 +993,21 @@ class WeatherWidget {
     
     renderInsights() {
         const insightsEl = document.getElementById('weatherInsights');
+        const sectionEl = document.getElementById('insightsSection');
         if (!insightsEl) return;
-        
+
         const insights = this.generateInsights();
-        
+
         if (insights.length === 0) {
-            insightsEl.innerHTML = `
-                <div class="insight-card">
-                    <div class="insight-header">
-                        <div class="insight-icon">ℹ️</div>
-                        <div class="insight-title">No insights available</div>
-                    </div>
-                    <div class="insight-body">Check back later for AI-powered weather insights.</div>
-                </div>
-            `;
+            if (sectionEl) sectionEl.style.display = 'none';
             return;
         }
-        
+
+        if (sectionEl) sectionEl.style.display = 'block';
+
         const html = insights.map((insight, index) => `
             <div class="insight-card" style="animation-delay: ${index * 0.1}s">
+                <button class="insight-close" onclick="this.parentElement.remove(); WeatherWidget.getInstance().checkInsightsEmpty();">✕</button>
                 <div class="insight-header">
                     <div class="insight-icon">${insight.icon}</div>
                     <div class="insight-title">${insight.title}</div>
@@ -1019,8 +1015,16 @@ class WeatherWidget {
                 <div class="insight-body">${insight.body}</div>
             </div>
         `).join('');
-        
+
         insightsEl.innerHTML = html;
+    }
+
+    checkInsightsEmpty() {
+        const insightsEl = document.getElementById('weatherInsights');
+        const sectionEl = document.getElementById('insightsSection');
+        if (insightsEl && sectionEl && insightsEl.children.length === 0) {
+            sectionEl.style.display = 'none';
+        }
     }
     
     renderWeatherDetails() {

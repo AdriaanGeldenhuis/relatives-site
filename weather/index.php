@@ -41,7 +41,7 @@ try {
 
 $pageTitle = 'Weather';
 $activePage = 'weather';
-$cacheVersion = '4.0.0';
+$cacheVersion = '4.1.0';
 $pageCSS = ['/weather/css/weather.css?v=' . $cacheVersion];
 $pageJS = ['/weather/js/weather.js?v=' . $cacheVersion];
 
@@ -207,6 +207,16 @@ require_once __DIR__ . '/../shared/components/header.php';
                     <span class="chip-value">--</span>
                 </div>
             </div>
+        </div>
+
+        <!-- AI Weather Insights Section -->
+        <div class="notes-section" id="insightsSection" style="display: none;">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span>💡</span> AI Insights
+                </h2>
+            </div>
+            <div id="weatherInsights" class="insights-grid"></div>
         </div>
 
         <!-- Weather Alerts Container -->
