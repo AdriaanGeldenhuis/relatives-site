@@ -158,8 +158,87 @@ class NotificationTriggers {
         ], $sharedBy);
     }
     
+    // ==================== BIRTHDAYS ====================
+
+    public function onBirthdayCreated(int $eventId, int $createdBy, int $familyId, string $personName, string $birthdayDate) {
+        $stmt = $this->db->prepare("SELECT full_name FROM users WHERE id = ?");
+        $stmt->execute([$createdBy]);
+        $creator = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        $date = new DateTime($birthdayDate);
+        $formatted = $date->format('F j');
+
+        $this->notifManager->createForFamily($familyId, [
+            'from_user_id' => $createdBy,
+            'type' => NotificationManager::TYPE_CALENDAR,
+            'title' => '🎂 Birthday Added',
+            'message' => ($creator['full_name'] ?? 'Someone') . " added {$personName}'s birthday ($formatted)",
+            'action_url' => '/calendar/',
+            'priority' => NotificationManager::PRIORITY_LOW,
+            'icon' => '🎂',
+            'vibrate' => 0,
+            'data' => [
+                'event_id' => $eventId,
+                'person_name' => $personName,
+                'birthday_date' => $birthdayDate,
+                'type' => 'birthday_created'
+            ]
+        ], $createdBy);
+    }
+
+    public function onBirthdayReminder(int $eventId, int $userId, string $personName, int $daysUntil) {
+        $title = $daysUntil === 0
+            ? "🎂 Today is {$personName}'s Birthday!"
+            : "🎂 {$personName}'s Birthday " . ($daysUntil === 1 ? "Tomorrow" : "in $daysUntil days");
+
+        $message = $daysUntil === 0
+            ? "Don't forget to wish {$personName} a happy birthday!"
+            : "Get ready to celebrate {$personName}'s birthday!";
+
+        $this->notifManager->create([
+            'user_id' => $userId,
+            'type' => NotificationManager::TYPE_CALENDAR,
+            'title' => $title,
+            'message' => $message,
+            'action_url' => '/calendar/',
+            'priority' => $daysUntil === 0 ? NotificationManager::PRIORITY_HIGH : NotificationManager::PRIORITY_NORMAL,
+            'icon' => '🎂',
+            'vibrate' => 1,
+            'sound' => $daysUntil === 0 ? 'celebration' : 'reminder',
+            'requires_interaction' => $daysUntil === 0 ? 1 : 0,
+            'data' => [
+                'event_id' => $eventId,
+                'person_name' => $personName,
+                'days_until' => $daysUntil,
+                'type' => 'birthday_reminder'
+            ]
+        ]);
+    }
+
+    // ==================== ALARMS ====================
+
+    public function onAlarmTriggered(int $eventId, int $userId, string $title, string $scheduledTime) {
+        $this->notifManager->create([
+            'user_id' => $userId,
+            'type' => NotificationManager::TYPE_SCHEDULE,
+            'title' => '⏰ Alarm',
+            'message' => $title,
+            'action_url' => '/schedule/',
+            'priority' => NotificationManager::PRIORITY_URGENT,
+            'icon' => '⏰',
+            'vibrate' => 1,
+            'sound' => 'alarm',
+            'requires_interaction' => 1,
+            'data' => [
+                'event_id' => $eventId,
+                'scheduled_time' => $scheduledTime,
+                'type' => 'alarm'
+            ]
+        ]);
+    }
+
     // ==================== CALENDAR ====================
-    
+
     public function onEventCreated(int $eventId, int $createdBy, int $familyId, string $title, string $startsAt) {
         $stmt = $this->db->prepare("SELECT full_name FROM users WHERE id = ?");
         $stmt->execute([$createdBy]);

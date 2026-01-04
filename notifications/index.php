@@ -192,76 +192,83 @@ require_once __DIR__ . '/../shared/components/header.php';
 
 <main class="main-content">
     <div class="container">
-        
-        <!-- Hero Section - Compact -->
-        <section class="hero-section">
+
+        <!-- Hero Section (Same as Schedule) -->
+        <div class="hero-section">
             <div class="greeting-card">
+                <div class="greeting-time"><?php echo date('l, F j, Y'); ?></div>
                 <h1 class="greeting-text">
                     <span class="greeting-icon">🔔</span>
-                    Notifications
+                    <span class="greeting-name">Notifications</span>
                 </h1>
-                
+                <p class="greeting-subtitle">Stay updated with your family activities</p>
+
                 <div class="quick-actions">
                     <?php if ($unreadCount > 0): ?>
                         <button onclick="markAllRead()" class="quick-action-btn">
                             <span class="qa-icon">✓</span>
-                            <span class="qa-text">Mark Read</span>
+                            <span>Mark Read</span>
                         </button>
                     <?php endif; ?>
                     <?php if (!empty($notifications)): ?>
                         <button onclick="showClearConfirm()" class="quick-action-btn">
                             <span class="qa-icon">🗑️</span>
-                            <span class="qa-text">Clear</span>
+                            <span>Clear</span>
                         </button>
                     <?php endif; ?>
                     <button onclick="showPreferences()" class="quick-action-btn">
                         <span class="qa-icon">⚙️</span>
-                        <span class="qa-text">Settings</span>
+                        <span>Settings</span>
                     </button>
                 </div>
             </div>
-        </section>
+        </div>
 
-        <!-- Unread Banner - Compact -->
-        <?php if ($unreadCount > 0): ?>
-        <div class="unread-banner glass-card">
-            <div class="unread-icon">🔔</div>
-            <div class="unread-text">
-                <strong><?php echo $unreadCount; ?></strong> unread
+        <!-- Filter Section (Same as Schedule) -->
+        <div class="search-filter-section">
+            <div class="filter-buttons">
+                <a href="?filter=all" class="filter-btn <?php echo $filter === 'all' ? 'active' : ''; ?>">
+                    <span>📋</span> All
+                </a>
+                <a href="?filter=unread" class="filter-btn <?php echo $filter === 'unread' ? 'active' : ''; ?>">
+                    <span>🔔</span> Unread
+                    <?php if ($unreadCount > 0): ?>
+                        <span class="filter-badge"><?php echo $unreadCount; ?></span>
+                    <?php endif; ?>
+                </a>
+                <a href="?filter=message" class="filter-btn <?php echo $filter === 'message' ? 'active' : ''; ?>">
+                    <span>💬</span> Messages
+                </a>
+                <a href="?filter=shopping" class="filter-btn <?php echo $filter === 'shopping' ? 'active' : ''; ?>">
+                    <span>🛒</span> Shopping
+                </a>
+                <a href="?filter=calendar" class="filter-btn <?php echo $filter === 'calendar' ? 'active' : ''; ?>">
+                    <span>📅</span> Calendar
+                </a>
+                <a href="?filter=schedule" class="filter-btn <?php echo $filter === 'schedule' ? 'active' : ''; ?>">
+                    <span>⏰</span> Schedule
+                </a>
+            </div>
+        </div>
+
+        <!-- Stats Bar (Same as Schedule week-stats-bar) -->
+        <?php if ($unreadCount > 0 || !empty($notifications)): ?>
+        <div class="week-stats-bar glass-card">
+            <div class="week-stats-title">Status:</div>
+            <div class="week-stats-chips">
+                <div class="stat-chip unread-chip">
+                    🔔 <?php echo $unreadCount; ?> unread
+                </div>
+                <div class="stat-chip total-chip">
+                    📋 <?php echo count($notifications); ?> total
+                </div>
             </div>
         </div>
         <?php endif; ?>
 
-        <!-- Filter Tabs - Compact -->
-        <div class="filter-tabs glass-card">
-            <a href="?filter=all" class="filter-tab <?php echo $filter === 'all' ? 'active' : ''; ?>">
-                <span class="tab-icon">📋</span>
-                <span class="tab-text">All</span>
-            </a>
-            <a href="?filter=unread" class="filter-tab <?php echo $filter === 'unread' ? 'active' : ''; ?>">
-                <span class="tab-icon">🔔</span>
-                <span class="tab-text">Unread</span>
-                <?php if ($unreadCount > 0): ?>
-                    <span class="tab-badge"><?php echo $unreadCount; ?></span>
-                <?php endif; ?>
-            </a>
-            <a href="?filter=message" class="filter-tab <?php echo $filter === 'message' ? 'active' : ''; ?>">
-                <span class="tab-icon">💬</span>
-            </a>
-            <a href="?filter=shopping" class="filter-tab <?php echo $filter === 'shopping' ? 'active' : ''; ?>">
-                <span class="tab-icon">🛒</span>
-            </a>
-            <a href="?filter=calendar" class="filter-tab <?php echo $filter === 'calendar' ? 'active' : ''; ?>">
-                <span class="tab-icon">📅</span>
-            </a>
-            <a href="?filter=tracking" class="filter-tab <?php echo $filter === 'tracking' ? 'active' : ''; ?>">
-                <span class="tab-icon">📍</span>
-            </a>
-        </div>
-
         <!-- Notifications Content -->
-        <div class="notifications-content">
-            
+        <div class="notes-section">
+
             <?php if (empty($notifications)): ?>
                 <!-- Empty State -->
                 <div class="empty-state glass-card">
@@ -277,83 +284,129 @@ require_once __DIR__ . '/../shared/components/header.php';
                         <?php endif; ?>
                     </p>
                     <?php if ($filter !== 'all'): ?>
-                        <a href="/notifications/" class="btn btn-primary">
+                        <a href="/notifications/" class="btn btn-primary btn-lg">
                             View All
                         </a>
                     <?php endif; ?>
                 </div>
-                
+
             <?php else: ?>
-                
-                <!-- Notification Groups -->
-                <?php foreach ($groupedNotifications as $dateLabel => $dateNotifications): ?>
-                    <div class="notification-group">
-                        <div class="group-header glass-card">
-                            <span class="group-icon">📅</span>
-                            <span class="group-title"><?php echo htmlspecialchars($dateLabel); ?></span>
-                            <span class="group-count"><?php echo count($dateNotifications); ?></span>
+
+                <?php
+                $totalNotifs = count($notifications);
+                $readNotifs = count(array_filter($notifications, fn($n) => $n['is_read'] == 1));
+                $readPercentage = $totalNotifs > 0 ? round(($readNotifs / $totalNotifs) * 100) : 0;
+                ?>
+
+                <!-- Progress Bar -->
+                <div class="list-actions glass-card">
+                    <div class="list-progress">
+                        <div class="progress-text">
+                            <span class="progress-icon">✓</span>
+                            <?php echo $readNotifs; ?> of <?php echo $totalNotifs; ?> read (<?php echo $readPercentage; ?>%)
                         </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: <?php echo $readPercentage; ?>%"></div>
+                        </div>
+                    </div>
 
-                        <div class="notifications-list">
-                            <?php foreach ($dateNotifications as $notif): ?>
-                                <?php
-                                $typeConfig = $notifTypes[$notif['type']] ?? $notifTypes['system'];
-                                $isRead = $notif['is_read'] == 1;
-                                ?>
-                                <div class="notification-card glass-card <?php echo $isRead ? 'read' : 'unread'; ?>" 
-                                     data-notification-id="<?php echo $notif['id']; ?>"
-                                     onclick="handleNotificationClick(<?php echo $notif['id']; ?>, <?php echo $notif['action_url'] ? "'" . htmlspecialchars($notif['action_url'], ENT_QUOTES) . "'" : 'null'; ?>)">
-                                    
-                                    <div class="notification-type-icon" style="background: <?php echo $typeConfig['color']; ?>">
-                                        <?php echo $notif['icon'] ?: $typeConfig['icon']; ?>
-                                    </div>
+                    <div class="action-buttons">
+                        <?php if ($readNotifs > 0): ?>
+                            <button onclick="showClearConfirm()" class="btn btn-secondary btn-sm">
+                                <span class="btn-icon">🗑️</span>
+                                <span>Clear Read</span>
+                            </button>
+                        <?php endif; ?>
+                        <?php if ($unreadCount > 0): ?>
+                            <button onclick="markAllRead()" class="btn btn-secondary btn-sm">
+                                <span class="btn-icon">✓</span>
+                                <span>Mark All Read</span>
+                            </button>
+                        <?php endif; ?>
+                    </div>
+                </div>
 
-                                    <div class="notification-content">
-                                        <div class="notification-header">
-                                            <?php if ($notif['from_user_id']): ?>
-                                                <div class="notif-avatar" style="background: <?php echo htmlspecialchars($notif['avatar_color'] ?? '#667eea'); ?>">
-                                                    <?php echo strtoupper(substr($notif['full_name'] ?? '?', 0, 1)); ?>
-                                                </div>
-                                            <?php endif; ?>
-                                            <div class="notif-meta">
-                                                <span class="notif-from">
-                                                    <?php echo $notif['from_user_id'] ? htmlspecialchars($notif['full_name'] ?? 'User') : 'System'; ?>
-                                                </span>
-                                                <span class="notif-time">
-                                                    <?php echo formatTimeAgo($notif['seconds_ago']); ?>
-                                                </span>
-                                            </div>
-                                            <?php if (!$isRead): ?>
-                                                <div class="unread-dot"></div>
-                                            <?php endif; ?>
-                                        </div>
+                <!-- Notifications Grid (Styled like schedule notes) -->
+                <div class="notes-grid">
+                    <?php foreach ($notifications as $notif): ?>
+                        <?php
+                        $typeConfig = $notifTypes[$notif['type']] ?? $notifTypes['system'];
+                        $isRead = $notif['is_read'] == 1;
+                        ?>
+                        <div class="note-card notification-card <?php echo $isRead ? 'read' : 'unread'; ?>"
+                             data-notification-id="<?php echo $notif['id']; ?>"
+                             style="background: <?php echo $typeConfig['color']; ?>;"
+                             onclick="handleNotificationClick(<?php echo $notif['id']; ?>, <?php echo $notif['action_url'] ? "'" . htmlspecialchars($notif['action_url'], ENT_QUOTES) . "'" : 'null'; ?>)">
 
-                                        <div class="notification-body">
-                                            <div class="notif-title"><?php echo htmlspecialchars($notif['title']); ?></div>
-                                            <?php if (!empty($notif['message'])): ?>
-                                                <div class="notif-message"><?php echo htmlspecialchars($notif['message']); ?></div>
-                                            <?php endif; ?>
-                                        </div>
+                            <!-- Header with type icon and actions -->
+                            <div class="note-header">
+                                <div class="notif-type-badge">
+                                    <?php echo $notif['icon'] ?: $typeConfig['icon']; ?>
+                                    <span class="type-label"><?php echo $typeConfig['label']; ?></span>
+                                </div>
 
-                                        <?php if ($notif['action_url']): ?>
-                                            <div class="notification-action">
-                                                <span class="action-text">Tap to view</span>
-                                                <span class="action-arrow">→</span>
-                                            </div>
-                                        <?php endif; ?>
-                                    </div>
-
-                                    <button onclick="event.stopPropagation(); deleteNotification(<?php echo $notif['id']; ?>)" 
-                                            class="notification-delete" 
+                                <div class="note-actions">
+                                    <?php if (!$isRead): ?>
+                                        <button onclick="event.stopPropagation(); markAsRead(<?php echo $notif['id']; ?>)"
+                                                class="note-action"
+                                                title="Mark Read">
+                                            ✓
+                                        </button>
+                                    <?php endif; ?>
+                                    <button onclick="event.stopPropagation(); deleteNotification(<?php echo $notif['id']; ?>)"
+                                            class="note-action"
                                             title="Delete">
                                         🗑️
                                     </button>
                                 </div>
-                            <?php endforeach; ?>
+                            </div>
+
+                            <!-- Notification Title -->
+                            <div class="note-title">
+                                <?php echo htmlspecialchars($notif['title']); ?>
+                                <?php if (!$isRead): ?>
+                                    <span class="unread-badge">NEW</span>
+                                <?php endif; ?>
+                            </div>
+
+                            <!-- Notification Message -->
+                            <?php if (!empty($notif['message'])): ?>
+                                <div class="note-body">
+                                    <?php echo htmlspecialchars($notif['message']); ?>
+                                </div>
+                            <?php endif; ?>
+
+                            <!-- Action Link -->
+                            <?php if ($notif['action_url']): ?>
+                                <div class="notif-action-hint">
+                                    <span>Tap to view</span>
+                                    <span class="action-arrow">→</span>
+                                </div>
+                            <?php endif; ?>
+
+                            <!-- Footer -->
+                            <div class="note-footer">
+                                <div class="note-author">
+                                    <?php if ($notif['from_user_id']): ?>
+                                        <div class="author-avatar-mini" style="background: <?php echo htmlspecialchars($notif['avatar_color'] ?? '#667eea'); ?>">
+                                            <?php echo strtoupper(substr($notif['full_name'] ?? '?', 0, 1)); ?>
+                                        </div>
+                                        <span><?php echo htmlspecialchars($notif['full_name'] ?? 'User'); ?></span>
+                                    <?php else: ?>
+                                        <div class="author-avatar-mini" style="background: #95a5a6;">
+                                            ⚙
+                                        </div>
+                                        <span>System</span>
+                                    <?php endif; ?>
+                                </div>
+                                <span class="notif-time">
+                                    <?php echo formatTimeAgo($notif['seconds_ago']); ?>
+                                </span>
+                            </div>
                         </div>
-                    </div>
-                <?php endforeach; ?>
-                
+                    <?php endforeach; ?>
+                </div>
+
             <?php endif; ?>
         </div>
     </div>
