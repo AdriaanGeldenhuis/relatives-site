@@ -50,11 +50,16 @@ $pageJS = ['/weather/js/weather.js'];
 require_once __DIR__ . '/../shared/components/header.php';
 ?>
 
+<!-- Animated Background (Same as Schedule) -->
+<div class="bg-animation">
+    <div class="bg-gradient"></div>
+    <canvas id="particles"></canvas>
+</div>
+
 <main class="main-content">
     <div class="container">
         <!-- Hero Weather Card -->
         <section class="weather-hero">
-            <div class="hero-gradient"></div>
             
             <div class="weather-header">
                 <h1 class="page-title">
