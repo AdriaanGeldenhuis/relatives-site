@@ -865,135 +865,130 @@ class WeatherWidget {
     renderCurrentWeather() {
         const currentEl = document.getElementById('currentWeather');
         if (!currentEl || !this.currentWeather) return;
-        
+
         const sunrise = new Date(this.currentWeather.sunrise * 1000);
         const sunset = new Date(this.currentWeather.sunset * 1000);
         const now = new Date();
         const isDaytime = now >= sunrise && now <= sunset;
-        
+
+        // Compact hero-style current weather (like schedule greeting)
         currentEl.innerHTML = `
-            <div class="current-weather-display">
-                <div class="weather-main">
-                    <div class="weather-icon-large">${this.getWeatherEmoji(this.currentWeather.condition, isDaytime)}</div>
-                    <div class="temperature-display">${this.currentWeather.temperature}°</div>
-                    <div class="weather-description">${this.currentWeather.description}</div>
-                    <div class="feels-like">Feels like ${this.currentWeather.feels_like}°C</div>
-                </div>
-                
-                <div class="weather-details-grid">
-                    <div class="detail-card">
-                        <div class="detail-icon">💧</div>
-                        <div class="detail-label">Humidity</div>
-                        <div class="detail-value">${this.currentWeather.humidity}%</div>
-                    </div>
-                    <div class="detail-card">
-                        <div class="detail-icon">💨</div>
-                        <div class="detail-label">Wind</div>
-                        <div class="detail-value">${this.currentWeather.wind_speed} km/h</div>
-                        <div class="wind-direction-indicator">
-                            <div class="wind-arrow" style="transform: rotate(${this.currentWeather.wind_direction}deg)">↑</div>
-                            <div class="wind-compass">
-                                <span class="compass-label n">N</span>
-                                <span class="compass-label e">E</span>
-                                <span class="compass-label s">S</span>
-                                <span class="compass-label w">W</span>
-                            </div>
-                        </div>
-                        ${this.currentWeather.wind_gust ? `<div style="font-size: 0.85rem; color: rgba(255,255,255,0.7); margin-top: 4px;">Gusts: ${this.currentWeather.wind_gust} km/h</div>` : ''}
-                    </div>
-                    <div class="detail-card">
-                        <div class="detail-icon">☁️</div>
-                        <div class="detail-label">Cloud Cover</div>
-                        <div class="detail-value">${this.currentWeather.clouds}%</div>
-                    </div>
-                    <div class="detail-card">
-                        <div class="detail-icon">👁️</div>
-                        <div class="detail-label">Visibility</div>
-                        <div class="detail-value">${this.currentWeather.visibility} km</div>
-                    </div>
-                    <div class="detail-card">
-                        <div class="detail-icon">🌡️</div>
-                        <div class="detail-label">Pressure</div>
-                        <div class="detail-value">${this.currentWeather.pressure} hPa</div>
-                    </div>
-                    <div class="detail-card">
-                        <div class="detail-icon">🌅</div>
-                        <div class="detail-label">Sunrise</div>
-                        <div class="detail-value">${sunrise.toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'})}</div>
-                    </div>
-                    <div class="detail-card">
-                        <div class="detail-icon">🌇</div>
-                        <div class="detail-label">Sunset</div>
-                        <div class="detail-value">${sunset.toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'})}</div>
-                    </div>
-                    <div class="detail-card">
-                        <div class="detail-icon">🌡️</div>
-                        <div class="detail-label">High / Low</div>
-                        <div class="detail-value">${this.currentWeather.temp_max}° / ${this.currentWeather.temp_min}°</div>
-                    </div>
+            <div class="weather-display">
+                <div class="weather-icon-main">${this.getWeatherEmoji(this.currentWeather.condition, isDaytime)}</div>
+                <div class="weather-temp">${this.currentWeather.temperature}°</div>
+                <div class="weather-desc">${this.currentWeather.description}</div>
+                <div class="weather-feels">Feels like ${this.currentWeather.feels_like}°C</div>
+                <div class="weather-location">
+                    <span>📍</span>
+                    <span>${this.location?.name || 'Current Location'}</span>
                 </div>
             </div>
         `;
-        
-        const cards = currentEl.querySelectorAll('.detail-card');
-        cards.forEach((card, index) => {
-            card.style.animationDelay = `${index * 0.05}s`;
-        });
+
+        // Show quick actions
+        const actionsEl = document.getElementById('weatherActions');
+        if (actionsEl) actionsEl.style.display = 'flex';
+
+        // Update stats bar
+        this.updateStatsBar();
+    }
+
+    updateStatsBar() {
+        const statsEl = document.getElementById('weatherStats');
+        if (!statsEl || !this.currentWeather) return;
+
+        statsEl.style.display = 'flex';
+
+        const humidityEl = document.getElementById('statHumidity');
+        const windEl = document.getElementById('statWind');
+        const uvEl = document.getElementById('statUV');
+
+        if (humidityEl) humidityEl.textContent = `💧 ${this.currentWeather.humidity}%`;
+        if (windEl) windEl.textContent = `💨 ${this.currentWeather.wind_speed} km/h`;
+        if (uvEl) uvEl.textContent = `☀️ ${this.currentWeather.clouds < 30 ? 'High' : 'Low'} UV`;
     }
     
     renderWeeklyForecast() {
         const forecastEl = document.getElementById('weeklyForecast');
         if (!forecastEl || !this.forecast || this.forecast.length === 0) return;
-        
+
         const html = this.forecast.map((day, index) => `
-            <div class="forecast-card" 
+            <div class="note-card"
                  onclick="WeatherWidget.getInstance().showDayDetail('${day.date}')"
                  style="animation-delay: ${index * 0.05}s">
-                <div class="forecast-card-header">
-                    <div class="forecast-day">${this.formatDayName(day.day_name, index)}</div>
-                    <div class="forecast-date">${this.formatDate(day.date)}</div>
-                </div>
+                <div class="forecast-day">${this.formatDayName(day.day_name, index)}</div>
+                <div class="forecast-date">${this.formatDate(day.date)}</div>
                 <div class="forecast-icon">${this.getWeatherEmoji(day.condition)}</div>
                 <div class="forecast-temps">
                     <span class="temp-high">${day.temp_max}°</span>
-                    <span class="temp-divider">/</span>
                     <span class="temp-low">${day.temp_min}°</span>
                 </div>
                 <div class="forecast-condition">${day.description}</div>
-                <div class="forecast-details">
-                    <div class="detail-item">
-                        <span class="detail-item-icon">💧</span>
-                        <span class="detail-item-value">${day.precipitation}%</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-item-icon">💨</span>
-                        <span class="detail-item-value">${day.wind_speed} km/h</span>
-                    </div>
-                </div>
-                <div class="forecast-card-glow"></div>
             </div>
         `).join('');
-        
+
         forecastEl.innerHTML = html;
+    }
+
+    setView(view) {
+        const forecastEl = document.getElementById('weeklyForecast');
+        const buttons = document.querySelectorAll('.filter-btn[data-view]');
+
+        buttons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.view === view);
+        });
+
+        if (forecastEl) {
+            forecastEl.classList.toggle('list-view', view === 'list');
+        }
     }
     
     renderHourlyForecast() {
         const hourlyEl = document.getElementById('hourlyForecast');
         if (!hourlyEl || !this.hourlyForecast.length) return;
-        
+
         const html = this.hourlyForecast.map((hour, index) => `
             <div class="hourly-card" style="animation-delay: ${index * 0.03}s">
                 <div class="hourly-time">${hour.time}</div>
                 <div class="hourly-icon">${this.getWeatherEmoji(hour.condition)}</div>
                 <div class="hourly-temp">${hour.temperature}°</div>
-                <div class="hourly-precip">
-                    <span class="precip-icon">💧</span>
-                    <span class="precip-value">${hour.precipitation}%</span>
-                </div>
             </div>
         `).join('');
-        
+
         hourlyEl.innerHTML = html;
+    }
+
+    toggleUnits() {
+        // Toggle between Celsius and Fahrenheit
+        this.useFahrenheit = !this.useFahrenheit;
+        if (this.location) {
+            this.refresh();
+        }
+    }
+
+    shareWeather() {
+        if (!this.currentWeather || !this.location) return;
+
+        const text = `Weather in ${this.location.name}: ${this.currentWeather.temperature}°C, ${this.currentWeather.description}`;
+
+        if (navigator.share) {
+            navigator.share({ title: 'Weather', text });
+        } else {
+            navigator.clipboard.writeText(text);
+            this.showNotification('Weather copied to clipboard!', 'success');
+        }
+    }
+
+    showNotification(message, type = 'info') {
+        const alertsEl = document.getElementById('weatherAlerts');
+        if (!alertsEl) return;
+
+        const alert = document.createElement('div');
+        alert.className = `weather-alert alert-${type}`;
+        alert.innerHTML = `<span>${message}</span>`;
+        alertsEl.appendChild(alert);
+
+        setTimeout(() => alert.remove(), 3000);
     }
     
     renderInsights() {
@@ -1031,33 +1026,41 @@ class WeatherWidget {
     renderWeatherDetails() {
         const detailsEl = document.getElementById('weatherDetails');
         if (!detailsEl || !this.currentWeather) return;
-        
+
         const sunrise = new Date(this.currentWeather.sunrise * 1000);
         const sunset = new Date(this.currentWeather.sunset * 1000);
-        const daylightMinutes = Math.round((sunset - sunrise) / 1000 / 60);
-        const daylightHours = Math.floor(daylightMinutes / 60);
-        const daylightMins = daylightMinutes % 60;
-        
+
+        // Compact chip-style details (like quick-actions)
         detailsEl.innerHTML = `
-            <div class="detail-card">
-                <div class="detail-icon">🌅</div>
-                <div class="detail-label">Daylight</div>
-                <div class="detail-value">${daylightHours}h ${daylightMins}m</div>
+            <div class="detail-chip">
+                <span class="chip-icon">💧</span>
+                <span class="chip-label">Humidity</span>
+                <span class="chip-value">${this.currentWeather.humidity}%</span>
             </div>
-            <div class="detail-card">
-                <div class="detail-icon">🧭</div>
-                <div class="detail-label">Wind Direction</div>
-                <div class="detail-value">${this.getWindDirection(this.currentWeather.wind_direction)}</div>
+            <div class="detail-chip">
+                <span class="chip-icon">💨</span>
+                <span class="chip-label">Wind</span>
+                <span class="chip-value">${this.currentWeather.wind_speed} km/h ${this.getWindDirection(this.currentWeather.wind_direction)}</span>
             </div>
-            <div class="detail-card">
-                <div class="detail-icon">🌡️</div>
-                <div class="detail-label">Dew Point</div>
-                <div class="detail-value">${this.calculateDewPoint(this.currentWeather.temperature, this.currentWeather.humidity)}°C</div>
+            <div class="detail-chip">
+                <span class="chip-icon">👁️</span>
+                <span class="chip-label">Visibility</span>
+                <span class="chip-value">${this.currentWeather.visibility} km</span>
             </div>
-            <div class="detail-card">
-                <div class="detail-icon">🌫️</div>
-                <div class="detail-label">Cloud Type</div>
-                <div class="detail-value">${this.getCloudType(this.currentWeather.clouds)}</div>
+            <div class="detail-chip">
+                <span class="chip-icon">🌡️</span>
+                <span class="chip-label">Pressure</span>
+                <span class="chip-value">${this.currentWeather.pressure} hPa</span>
+            </div>
+            <div class="detail-chip">
+                <span class="chip-icon">☀️</span>
+                <span class="chip-label">UV Index</span>
+                <span class="chip-value">${this.currentWeather.clouds < 30 ? 'High' : 'Moderate'}</span>
+            </div>
+            <div class="detail-chip">
+                <span class="chip-icon">🌅</span>
+                <span class="chip-label">Sunrise</span>
+                <span class="chip-value">${sunrise.toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'})}</span>
             </div>
         `;
     }

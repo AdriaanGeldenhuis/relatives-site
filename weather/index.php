@@ -1,32 +1,29 @@
 <?php
-declare(strict_types=1);
+/**
+ * ============================================
+ * RELATIVES - WEATHER CENTER
+ * Styled exactly like Schedule page
+ * ============================================
+ */
 
 session_start();
 
-// Check authentication
 if (!isset($_SESSION['user_id'])) {
-    header('Location: /login.php', true, 302);
+    header('Location: /login.php');
     exit;
 }
 
 require_once __DIR__ . '/../core/bootstrap.php';
 
-try {
-    $auth = new Auth($db);
-    $user = $auth->getCurrentUser();
-    
-    if (!$user) {
-        header('Location: /login.php?session_expired=1', true, 302);
-        exit;
-    }
-    
-} catch (Exception $e) {
-    error_log('Weather page error: ' . $e->getMessage());
-    header('Location: /login.php?error=1', true, 302);
+$auth = new Auth($db);
+$user = $auth->getCurrentUser();
+
+if (!$user) {
+    header('Location: /login.php');
     exit;
 }
 
-// Get user's last known location from tracking
+// Get user's last known location
 $userLocation = null;
 try {
     $stmt = $db->prepare("
@@ -42,201 +39,192 @@ try {
     error_log('Location fetch error: ' . $e->getMessage());
 }
 
-$pageTitle = 'Weather Forecast';
+$pageTitle = 'Weather';
 $activePage = 'weather';
-$pageCSS = ['/weather/css/weather.css'];
-$pageJS = ['/weather/js/weather.js'];
+$cacheVersion = '4.0.0';
+$pageCSS = ['/weather/css/weather.css?v=' . $cacheVersion];
+$pageJS = ['/weather/js/weather.js?v=' . $cacheVersion];
 
 require_once __DIR__ . '/../shared/components/header.php';
 ?>
 
-<!-- Animated Background (Same as Schedule) -->
+<!-- Animated Background -->
 <div class="bg-animation">
     <div class="bg-gradient"></div>
     <canvas id="particles"></canvas>
 </div>
 
+<!-- Main Content -->
 <main class="main-content">
     <div class="container">
-        <!-- Hero Weather Card -->
-        <section class="weather-hero">
-            
-            <div class="weather-header">
-                <h1 class="page-title">
-                    <span class="title-icon">🌤️</span>
-                    <span class="title-text">Weather Center</span>
-                </h1>
-            </div>
 
-            <!-- Location Search -->
-            <div class="location-search">
-                <div class="search-input-wrapper">
-                    <span class="search-icon">🔍</span>
-                    <input 
-                        type="text" 
-                        id="locationSearch" 
-                        placeholder="Search for a city or use current location..."
-                        autocomplete="off"
-                    >
-                    <button id="useCurrentLocation" class="use-location-btn" title="Use current location">
-                        <span class="location-icon">📍</span>
+        <!-- Hero Section (Same as Schedule) -->
+        <div class="hero-section">
+            <div class="greeting-card">
+                <div class="greeting-time"><?php echo date('l, F j, Y'); ?></div>
+                <h1 class="greeting-text">
+                    <span class="greeting-icon">🌤️</span>
+                    <span class="greeting-name">Weather Center</span>
+                </h1>
+                <p class="greeting-subtitle">Real-time forecasts & weather insights</p>
+
+                <!-- Location Search (Compact) -->
+                <div class="location-search">
+                    <div class="search-input-wrapper">
+                        <span class="search-icon">🔍</span>
+                        <input
+                            type="text"
+                            id="locationSearch"
+                            placeholder="Search city..."
+                            autocomplete="off"
+                        >
+                        <button id="useCurrentLocation" class="location-btn" title="Use current location">
+                            <span>📍</span>
+                        </button>
+                    </div>
+                    <div id="searchResults" class="search-results" style="display: none;"></div>
+                </div>
+
+                <!-- Current Weather Display -->
+                <div id="currentWeather" class="current-weather">
+                    <div class="weather-loading">
+                        <div class="loading-spinner">☁️</div>
+                        <p><?php echo $userLocation ? 'Loading weather...' : 'Search for a location'; ?></p>
+                    </div>
+                </div>
+
+                <!-- Quick Actions (Same style as Schedule) -->
+                <div class="quick-actions" id="weatherActions" style="display: none;">
+                    <button onclick="WeatherWidget.getInstance().refresh()" class="quick-action-btn">
+                        <span class="qa-icon">🔄</span>
+                        <span>Refresh</span>
+                    </button>
+                    <button onclick="WeatherWidget.getInstance().toggleUnits()" class="quick-action-btn">
+                        <span class="qa-icon">🌡️</span>
+                        <span>Units</span>
+                    </button>
+                    <button onclick="WeatherWidget.getInstance().shareWeather()" class="quick-action-btn">
+                        <span class="qa-icon">📤</span>
+                        <span>Share</span>
                     </button>
                 </div>
-                <div id="searchResults" class="search-results-dropdown" style="display: none;"></div>
             </div>
+        </div>
 
-            <!-- Current Location Display -->
-            <div class="location-display" id="weatherLocation">
-                <span class="location-icon">📍</span>
-                <span class="location-text">
-                    <?php if ($userLocation): ?>
-                        Loading your location...
-                    <?php else: ?>
-                        Search for a location or enable location services
-                    <?php endif; ?>
-                </span>
+        <!-- Weather Stats Bar (Like Schedule Week Stats) -->
+        <div class="stats-bar glass-card" id="weatherStats" style="display: none;">
+            <div class="stats-title">Today:</div>
+            <div class="stats-chips">
+                <div class="stat-chip" id="statHumidity">💧 --</div>
+                <div class="stat-chip" id="statWind">💨 --</div>
+                <div class="stat-chip" id="statUV">☀️ --</div>
             </div>
+        </div>
 
-            <!-- Current Weather - Hero Card -->
-            <div id="currentWeather" class="current-weather-hero">
-                <div class="weather-loading">
-                    <div class="loading-animation">
-                        <div class="loading-cloud">☁️</div>
-                        <div class="loading-sun">☀️</div>
-                    </div>
-                    <p class="loading-text">
-                        <?php if ($userLocation): ?>
-                            Loading weather for your current location...
-                        <?php else: ?>
-                            Search for a location to view weather
-                        <?php endif; ?>
-                    </p>
-                </div>
-            </div>
-        </section>
-
-        <!-- 7-Day Forecast -->
-        <section class="forecast-section">
+        <!-- 7-Day Forecast Section -->
+        <div class="notes-section">
             <div class="section-header">
-                <div class="section-title-wrapper">
-                    <span class="section-icon">📅</span>
-                    <h2 class="section-title">7-Day Forecast</h2>
-                </div>
-                <div class="forecast-tabs">
-                    <button class="tab-btn active" data-view="cards">
+                <h2 class="section-title">
+                    <span>📅</span> 7-Day Forecast
+                </h2>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-view="cards" onclick="WeatherWidget.getInstance().setView('cards')">
                         <span>📊</span> Cards
                     </button>
-                    <button class="tab-btn" data-view="list">
+                    <button class="filter-btn" data-view="list" onclick="WeatherWidget.getInstance().setView('list')">
                         <span>📋</span> List
                     </button>
                 </div>
             </div>
-            
-            <div id="weeklyForecast" class="weekly-forecast cards-view">
-                <div class="forecast-loading">
-                    <?php for ($i = 0; $i < 7; $i++): ?>
-                        <div class="forecast-card skeleton-card">
-                            <div class="skeleton skeleton-circle"></div>
-                            <div class="skeleton skeleton-text"></div>
-                            <div class="skeleton skeleton-text-sm"></div>
-                        </div>
-                    <?php endfor; ?>
-                </div>
-            </div>
-        </section>
 
-        <!-- Hourly Forecast -->
-        <section class="hourly-section">
-            <div class="section-header">
-                <div class="section-title-wrapper">
-                    <span class="section-icon">🕐</span>
-                    <h2 class="section-title">24-Hour Forecast</h2>
+            <div id="weeklyForecast" class="notes-grid forecast-grid">
+                <!-- Skeleton loading -->
+                <?php for ($i = 0; $i < 7; $i++): ?>
+                <div class="note-card skeleton-card">
+                    <div class="skeleton skeleton-icon"></div>
+                    <div class="skeleton skeleton-text"></div>
+                    <div class="skeleton skeleton-text-sm"></div>
                 </div>
+                <?php endfor; ?>
             </div>
-            
-            <div class="hourly-scroll-container">
-                <div id="hourlyForecast" class="hourly-forecast">
+        </div>
+
+        <!-- Hourly Forecast Section -->
+        <div class="notes-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span>🕐</span> 24-Hour Forecast
+                </h2>
+            </div>
+
+            <div class="hourly-scroll">
+                <div id="hourlyForecast" class="hourly-grid">
                     <div class="weather-loading">
-                        <div class="loading-animation">
-                            <div class="loading-cloud">☁️</div>
-                            <div class="loading-sun">☀️</div>
-                        </div>
-                        <p class="loading-text">Loading hourly forecast...</p>
+                        <div class="loading-spinner">☁️</div>
+                        <p>Loading hourly forecast...</p>
                     </div>
                 </div>
             </div>
-        </section>
+        </div>
 
-        <!-- Weather Insights (AI-Generated) -->
-        <section class="insights-section">
+        <!-- Weather Details Section (Compact like Quick Actions) -->
+        <div class="notes-section">
             <div class="section-header">
-                <div class="section-title-wrapper">
-                    <span class="section-icon">🧠</span>
-                    <h2 class="section-title">Smart Insights</h2>
-                </div>
+                <h2 class="section-title">
+                    <span>📊</span> Details
+                </h2>
             </div>
-            
-            <div id="weatherInsights" class="insights-grid">
-                <div class="insight-card">
-                    <div class="insight-header">
-                        <div class="insight-icon">⏳</div>
-                        <div class="insight-title">Analyzing weather patterns...</div>
-                    </div>
-                    <div class="insight-body">
-                        AI-powered insights will appear here based on current conditions.
-                    </div>
-                </div>
-            </div>
-        </section>
 
-        <!-- Weather Details Grid -->
-        <section class="details-section">
-            <div class="section-header">
-                <div class="section-title-wrapper">
-                    <span class="section-icon">📊</span>
-                    <h2 class="section-title">Weather Details</h2>
+            <div id="weatherDetails" class="details-chips">
+                <div class="detail-chip skeleton-chip">
+                    <span class="chip-icon">💧</span>
+                    <span class="chip-label">Humidity</span>
+                    <span class="chip-value">--</span>
+                </div>
+                <div class="detail-chip skeleton-chip">
+                    <span class="chip-icon">💨</span>
+                    <span class="chip-label">Wind</span>
+                    <span class="chip-value">--</span>
+                </div>
+                <div class="detail-chip skeleton-chip">
+                    <span class="chip-icon">👁️</span>
+                    <span class="chip-label">Visibility</span>
+                    <span class="chip-value">--</span>
+                </div>
+                <div class="detail-chip skeleton-chip">
+                    <span class="chip-icon">🌡️</span>
+                    <span class="chip-label">Pressure</span>
+                    <span class="chip-value">--</span>
+                </div>
+                <div class="detail-chip skeleton-chip">
+                    <span class="chip-icon">☀️</span>
+                    <span class="chip-label">UV Index</span>
+                    <span class="chip-value">--</span>
+                </div>
+                <div class="detail-chip skeleton-chip">
+                    <span class="chip-icon">🌅</span>
+                    <span class="chip-label">Sunrise</span>
+                    <span class="chip-value">--</span>
                 </div>
             </div>
-            
-            <div id="weatherDetails" class="details-grid">
-                <div class="detail-card skeleton-card">
-                    <div class="skeleton skeleton-circle"></div>
-                    <div class="skeleton skeleton-text"></div>
-                </div>
-                <div class="detail-card skeleton-card">
-                    <div class="skeleton skeleton-circle"></div>
-                    <div class="skeleton skeleton-text"></div>
-                </div>
-                <div class="detail-card skeleton-card">
-                    <div class="skeleton skeleton-circle"></div>
-                    <div class="skeleton skeleton-text"></div>
-                </div>
-                <div class="detail-card skeleton-card">
-                    <div class="skeleton skeleton-circle"></div>
-                    <div class="skeleton skeleton-text"></div>
-                </div>
-            </div>
-        </section>
+        </div>
 
         <!-- Weather Alerts Container -->
-        <div id="weatherAlerts" class="weather-alerts-container"></div>
+        <div id="weatherAlerts" class="alerts-container"></div>
     </div>
 </main>
 
 <!-- Day Detail Modal -->
-<div id="dayDetailModal" class="modal weather-modal">
-    <div class="modal-overlay" onclick="WeatherWidget.getInstance().closeModal()"></div>
-    <div class="modal-content weather-detail-content">
-        <button class="modal-close glass-btn" onclick="WeatherWidget.getInstance().closeModal()">
-            <span class="close-icon">✕</span>
-        </button>
-        <div id="dayDetailContent" class="detail-inner">
+<div id="dayDetailModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalTitle">Day Details</h2>
+            <button onclick="WeatherWidget.getInstance().closeModal()" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body" id="dayDetailContent">
             <div class="weather-loading">
-                <div class="loading-animation">
-                    <div class="loading-cloud">☁️</div>
-                    <div class="loading-sun">☀️</div>
-                </div>
-                <p class="loading-text">Loading details...</p>
+                <div class="loading-spinner">☁️</div>
+                <p>Loading...</p>
             </div>
         </div>
     </div>
