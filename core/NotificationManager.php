@@ -117,23 +117,23 @@ class NotificationManager {
             $this->logDelivery($notificationId, $data['user_id'], 'push', 'failed', 'FCM not configured');
             return;
         }
-        
+
         try {
             // Get FCM tokens
             $stmt = $this->db->prepare("
-                SELECT token, device_type 
-                FROM fcm_tokens 
-                WHERE user_id = ? 
+                SELECT id, token, device_type
+                FROM fcm_tokens
+                WHERE user_id = ?
                 ORDER BY updated_at DESC
             ");
             $stmt->execute([$data['user_id']]);
             $tokens = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
             if (empty($tokens)) {
                 $this->logDelivery($notificationId, $data['user_id'], 'push', 'failed', 'No tokens');
                 return;
             }
-            
+
             // Prepare FCM message
             $notification = [
                 'title' => $data['title'],
@@ -142,28 +142,54 @@ class NotificationManager {
                 'click_action' => $data['action_url'] ?? '/',
                 'sound' => $data['sound'] ?? 'default'
             ];
-            
+
             $fcmData = array_merge($data['data'] ?? [], [
                 'notification_id' => (string)$notificationId,
                 'type' => $data['type'],
                 'action_url' => $data['action_url'] ?? '/'
             ]);
-            
+
             // Send to all tokens
             foreach ($tokens as $tokenData) {
-                $success = $this->firebase->send($tokenData['token'], $notification, $fcmData);
-                $this->logDelivery(
-                    $notificationId, 
-                    $data['user_id'], 
-                    'push', 
-                    $success ? 'sent' : 'failed',
-                    $success ? null : 'FCM send failed'
-                );
+                $result = $this->firebase->send($tokenData['token'], $notification, $fcmData);
+
+                // Handle invalid tokens - remove them from database
+                if ($result === 'invalid_token') {
+                    $this->removeInvalidToken($tokenData['id'], $tokenData['token']);
+                    $this->logDelivery(
+                        $notificationId,
+                        $data['user_id'],
+                        'push',
+                        'failed',
+                        'Invalid token removed'
+                    );
+                } else {
+                    $this->logDelivery(
+                        $notificationId,
+                        $data['user_id'],
+                        'push',
+                        $result === true ? 'sent' : 'failed',
+                        $result === true ? null : 'FCM send failed'
+                    );
+                }
             }
-            
+
         } catch (Exception $e) {
             error_log('sendPushNotification error: ' . $e->getMessage());
             $this->logDelivery($notificationId, $data['user_id'], 'push', 'failed', $e->getMessage());
+        }
+    }
+
+    /**
+     * Remove invalid FCM token from database
+     */
+    private function removeInvalidToken(int $tokenId, string $token) {
+        try {
+            $stmt = $this->db->prepare("DELETE FROM fcm_tokens WHERE id = ?");
+            $stmt->execute([$tokenId]);
+            error_log("FCM: Removed invalid token ID $tokenId");
+        } catch (Exception $e) {
+            error_log("FCM: Failed to remove invalid token: " . $e->getMessage());
         }
     }
     
