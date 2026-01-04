@@ -240,24 +240,28 @@ require_once __DIR__ . '/../shared/components/header.php';
         
         <!-- Hero Header -->
         <section class="hero-section">
-            <div class="greeting-card glass-card">
-                <div class="admin-badge-large">
-                    <span class="badge-icon">⚙️</span>
-                    <span class="badge-text"><?php echo ucfirst($user['role']); ?> Panel</span>
-                </div>
-                <h1 class="page-title">
-                    <span class="gradient-text">Family Management</span>
+            <div class="greeting-card">
+                <div class="greeting-time"><?php echo ucfirst($user['role']); ?> Panel</div>
+                <h1 class="greeting-text">
+                    <span class="greeting-icon">⚙️</span>
+                    <span class="greeting-name"><?php echo htmlspecialchars($family['name']); ?></span>
                 </h1>
-                <p class="page-subtitle">
-                    Complete control over your family hub
-                </p>
-                
-                <!-- Quick Actions Bar -->
-                <div class="quick-actions" style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
-                    <button onclick="showInviteModal()" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 20px;">📨</span>
+                <p class="greeting-subtitle">Complete control over your family hub</p>
+
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <button onclick="showInviteModal()" class="quick-action-btn">
+                        <span class="qa-icon">📨</span>
                         <span>Invite Member</span>
                     </button>
+                    <button onclick="copyInviteCode()" class="quick-action-btn">
+                        <span class="qa-icon">📋</span>
+                        <span>Copy Code</span>
+                    </button>
+                    <a href="/home/" class="quick-action-btn">
+                        <span class="qa-icon">🏠</span>
+                        <span>Home</span>
+                    </a>
                 </div>
             </div>
         </section>
@@ -342,52 +346,28 @@ require_once __DIR__ . '/../shared/components/header.php';
         <!-- Quick Stats Grid -->
         <section class="stats-section">
             <div class="stats-grid">
-                <div class="stat-card" data-tilt data-color="blue">
-                    <div class="stat-icon">
-                        <div class="icon-wrapper">👥</div>
-                    </div>
-                    <div class="stat-content">
-                        <div class="stat-number" data-count="<?php echo $stats['active_members']; ?>">0</div>
-                        <div class="stat-label">Active Members</div>
-                        <div class="stat-sublabel"><?php echo $stats['total_members']; ?> total</div>
-                    </div>
-                    <div class="stat-glow"></div>
+                <div class="stat-card">
+                    <span class="stat-icon">👥</span>
+                    <div class="stat-number"><?php echo $stats['active_members']; ?></div>
+                    <div class="stat-label">Active Members</div>
                 </div>
 
-                <div class="stat-card" data-tilt data-color="green">
-                    <div class="stat-icon">
-                        <div class="icon-wrapper">🛒</div>
-                    </div>
-                    <div class="stat-content">
-                        <div class="stat-number" data-count="<?php echo $stats['pending_shopping_items']; ?>">0</div>
-                        <div class="stat-label">Pending Items</div>
-                        <div class="stat-sublabel"><?php echo $stats['total_shopping_items']; ?> total</div>
-                    </div>
-                    <div class="stat-glow"></div>
+                <div class="stat-card">
+                    <span class="stat-icon">🛒</span>
+                    <div class="stat-number"><?php echo $stats['pending_shopping_items']; ?></div>
+                    <div class="stat-label">Pending Items</div>
                 </div>
 
-                <div class="stat-card" data-tilt data-color="purple">
-                    <div class="stat-icon">
-                        <div class="icon-wrapper">📝</div>
-                    </div>
-                    <div class="stat-content">
-                        <div class="stat-number" data-count="<?php echo $stats['total_notes']; ?>">0</div>
-                        <div class="stat-label">Family Notes</div>
-                        <div class="stat-sublabel">Shared memories</div>
-                    </div>
-                    <div class="stat-glow"></div>
+                <div class="stat-card">
+                    <span class="stat-icon">📝</span>
+                    <div class="stat-number"><?php echo $stats['total_notes']; ?></div>
+                    <div class="stat-label">Family Notes</div>
                 </div>
 
-                <div class="stat-card" data-tilt data-color="orange">
-                    <div class="stat-icon">
-                        <div class="icon-wrapper">📅</div>
-                    </div>
-                    <div class="stat-content">
-                        <div class="stat-number" data-count="<?php echo $stats['upcoming_events']; ?>">0</div>
-                        <div class="stat-label">Upcoming Events</div>
-                        <div class="stat-sublabel"><?php echo $stats['total_events']; ?> total</div>
-                    </div>
-                    <div class="stat-glow"></div>
+                <div class="stat-card">
+                    <span class="stat-icon">📅</span>
+                    <div class="stat-number"><?php echo $stats['upcoming_events']; ?></div>
+                    <div class="stat-label">Upcoming Events</div>
                 </div>
             </div>
         </section>
