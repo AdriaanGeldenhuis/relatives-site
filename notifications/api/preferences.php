@@ -137,15 +137,16 @@ try {
                 $time .= ':00';
             }
 
-            // Check if exists
-            $stmt = $db->prepare("SELECT id, notification_time FROM weather_notification_schedule WHERE user_id = ?");
+            // Check if exists and get formatted time for comparison
+            $stmt = $db->prepare("SELECT id, TIME_FORMAT(notification_time, '%H:%i:%s') as formatted_time FROM weather_notification_schedule WHERE user_id = ?");
             $stmt->execute([$userId]);
-            $exists = $stmt->fetch();
+            $exists = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if ($exists) {
-                // Reset last_sent if time changed so notification can send today
-                $resetLastSent = ($exists['notification_time'] !== $time) ? ', last_sent = NULL' : '';
+                // Check if time changed - always reset last_sent on time change
+                $timeChanged = ($exists['formatted_time'] !== $time);
 
+                // Basic update without last_sent
                 $stmt = $db->prepare("
                     UPDATE weather_notification_schedule
                     SET enabled = ?,
@@ -153,10 +154,20 @@ try {
                         voice_enabled = ?,
                         include_forecast = ?,
                         updated_at = NOW()
-                        $resetLastSent
                     WHERE user_id = ?
                 ");
                 $stmt->execute([$enabled, $time, $voiceEnabled, $includeForecast, $userId]);
+
+                // Reset last_sent separately if time changed (handles missing column gracefully)
+                if ($timeChanged) {
+                    try {
+                        $stmt = $db->prepare("UPDATE weather_notification_schedule SET last_sent = NULL WHERE user_id = ?");
+                        $stmt->execute([$userId]);
+                    } catch (PDOException $e) {
+                        // Column might not exist - log but don't fail
+                        error_log("Could not reset last_sent: " . $e->getMessage());
+                    }
+                }
             } else {
                 $stmt = $db->prepare("
                     INSERT INTO weather_notification_schedule
@@ -193,13 +204,35 @@ try {
             $lat = $location['latitude'] ?? -26.2041;
             $lon = $location['longitude'] ?? 28.0473;
 
-            // Fetch weather data
+            // Fetch weather data using cURL for better reliability
             $apiKey = '563504b6b46d0e6bcf9a49e1cb6bc4f3';
             $weatherUrl = "https://api.openweathermap.org/data/2.5/weather?lat={$lat}&lon={$lon}&appid={$apiKey}&units=metric";
 
-            $weatherResponse = @file_get_contents($weatherUrl);
+            $weatherResponse = false;
+            if (function_exists('curl_init')) {
+                $ch = curl_init($weatherUrl);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                $weatherResponse = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $curlError = curl_error($ch);
+                curl_close($ch);
+
+                if ($weatherResponse === false || $httpCode !== 200) {
+                    error_log("Weather API error: HTTP $httpCode, cURL error: $curlError");
+                    $weatherResponse = false;
+                }
+            }
+
+            // Fallback to file_get_contents
             if ($weatherResponse === false) {
-                throw new Exception('Failed to fetch weather data');
+                $context = stream_context_create(['http' => ['timeout' => 10]]);
+                $weatherResponse = @file_get_contents($weatherUrl, false, $context);
+            }
+
+            if ($weatherResponse === false) {
+                throw new Exception('Failed to fetch weather data - check server connectivity');
             }
 
             $weatherData = json_decode($weatherResponse, true);

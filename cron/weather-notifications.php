@@ -31,22 +31,38 @@ try {
     echo "Current time: $currentTimeHHMM\n";
 
     // Debug: Show all scheduled weather notifications
-    $debugStmt = $db->prepare("
-        SELECT wns.user_id, u.full_name,
-               TIME_FORMAT(wns.notification_time, '%H:%i') as scheduled_time,
-               wns.enabled, wns.last_sent
-        FROM weather_notification_schedule wns
-        JOIN users u ON wns.user_id = u.id
-        WHERE wns.enabled = 1
-        ORDER BY wns.notification_time
-    ");
-    $debugStmt->execute();
-    $allSchedules = $debugStmt->fetchAll(PDO::FETCH_ASSOC);
+    // Handle case where last_sent column might not exist
+    try {
+        $debugStmt = $db->prepare("
+            SELECT wns.user_id, u.full_name,
+                   TIME_FORMAT(wns.notification_time, '%H:%i') as scheduled_time,
+                   wns.enabled, wns.last_sent
+            FROM weather_notification_schedule wns
+            JOIN users u ON wns.user_id = u.id
+            WHERE wns.enabled = 1
+            ORDER BY wns.notification_time
+        ");
+        $debugStmt->execute();
+        $allSchedules = $debugStmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        // Fallback without last_sent
+        $debugStmt = $db->prepare("
+            SELECT wns.user_id, u.full_name,
+                   TIME_FORMAT(wns.notification_time, '%H:%i') as scheduled_time,
+                   wns.enabled
+            FROM weather_notification_schedule wns
+            JOIN users u ON wns.user_id = u.id
+            WHERE wns.enabled = 1
+            ORDER BY wns.notification_time
+        ");
+        $debugStmt->execute();
+        $allSchedules = $debugStmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 
     if (!empty($allSchedules)) {
         echo "Active weather schedules:\n";
         foreach ($allSchedules as $sched) {
-            $lastSent = $sched['last_sent'] ? date('Y-m-d', strtotime($sched['last_sent'])) : 'never';
+            $lastSent = isset($sched['last_sent']) && $sched['last_sent'] ? date('Y-m-d', strtotime($sched['last_sent'])) : 'never';
             echo "  - {$sched['full_name']}: {$sched['scheduled_time']} (last sent: $lastSent)\n";
         }
     } else {
@@ -55,23 +71,45 @@ try {
 
     // Simple and reliable time matching using TIME_FORMAT
     // This converts the TIME field to HH:MM format for exact comparison
-    $stmt = $db->prepare("
-        SELECT
-            wns.user_id,
-            wns.notification_time,
-            TIME_FORMAT(wns.notification_time, '%H:%i') as time_formatted,
-            wns.voice_enabled,
-            wns.include_forecast,
-            u.full_name
-        FROM weather_notification_schedule wns
-        JOIN users u ON wns.user_id = u.id
-        WHERE wns.enabled = 1
-          AND TIME_FORMAT(wns.notification_time, '%H:%i') = ?
-          AND (wns.last_sent IS NULL OR DATE(wns.last_sent) < CURDATE())
-          AND u.status = 'active'
-    ");
-    $stmt->execute([$currentTimeHHMM]);
-    $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Handle case where last_sent column might not exist
+    try {
+        $stmt = $db->prepare("
+            SELECT
+                wns.user_id,
+                wns.notification_time,
+                TIME_FORMAT(wns.notification_time, '%H:%i') as time_formatted,
+                wns.voice_enabled,
+                wns.include_forecast,
+                u.full_name
+            FROM weather_notification_schedule wns
+            JOIN users u ON wns.user_id = u.id
+            WHERE wns.enabled = 1
+              AND TIME_FORMAT(wns.notification_time, '%H:%i') = ?
+              AND (wns.last_sent IS NULL OR DATE(wns.last_sent) < CURDATE())
+              AND u.status = 'active'
+        ");
+        $stmt->execute([$currentTimeHHMM]);
+        $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        // Fallback without last_sent check
+        echo "Note: last_sent column may not exist, proceeding without dedup check\n";
+        $stmt = $db->prepare("
+            SELECT
+                wns.user_id,
+                wns.notification_time,
+                TIME_FORMAT(wns.notification_time, '%H:%i') as time_formatted,
+                wns.voice_enabled,
+                wns.include_forecast,
+                u.full_name
+            FROM weather_notification_schedule wns
+            JOIN users u ON wns.user_id = u.id
+            WHERE wns.enabled = 1
+              AND TIME_FORMAT(wns.notification_time, '%H:%i') = ?
+              AND u.status = 'active'
+        ");
+        $stmt->execute([$currentTimeHHMM]);
+        $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 
     if (empty($users)) {
         echo "No users scheduled for $currentTimeHHMM\n";
@@ -190,14 +228,19 @@ try {
             $notifId = $notifManager->create($notificationData);
             
             if ($notifId) {
-                // Update last sent timestamp
-                $stmt = $db->prepare("
-                    UPDATE weather_notification_schedule 
-                    SET last_sent = NOW() 
-                    WHERE user_id = ?
-                ");
-                $stmt->execute([$user['user_id']]);
-                
+                // Update last sent timestamp (handle missing column gracefully)
+                try {
+                    $stmt = $db->prepare("
+                        UPDATE weather_notification_schedule
+                        SET last_sent = NOW()
+                        WHERE user_id = ?
+                    ");
+                    $stmt->execute([$user['user_id']]);
+                } catch (PDOException $e) {
+                    // Column might not exist - log but continue
+                    error_log("Could not update last_sent for user {$user['user_id']}: " . $e->getMessage());
+                }
+
                 echo "  ✅ Sent weather notification (ID: $notifId)\n";
             } else {
                 echo "  ⚠️ Failed to create notification\n";
