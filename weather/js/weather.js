@@ -896,16 +896,7 @@ class WeatherWidget {
     updateStatsBar() {
         const statsEl = document.getElementById('weatherStats');
         if (!statsEl || !this.currentWeather) return;
-
         statsEl.style.display = 'flex';
-
-        const humidityEl = document.getElementById('statHumidity');
-        const windEl = document.getElementById('statWind');
-        const uvEl = document.getElementById('statUV');
-
-        if (humidityEl) humidityEl.textContent = `💧 ${this.currentWeather.humidity}%`;
-        if (windEl) windEl.textContent = `💨 ${this.currentWeather.wind_speed} km/h`;
-        if (uvEl) uvEl.textContent = `☀️ ${this.currentWeather.clouds < 30 ? 'High' : 'Low'} UV`;
     }
     
     renderWeeklyForecast() {
@@ -1028,45 +1019,24 @@ class WeatherWidget {
     }
     
     renderWeatherDetails() {
-        const detailsEl = document.getElementById('weatherDetails');
-        if (!detailsEl || !this.currentWeather) return;
+        if (!this.currentWeather) return;
 
         const sunrise = new Date(this.currentWeather.sunrise * 1000);
-        const sunset = new Date(this.currentWeather.sunset * 1000);
 
-        // Compact chip-style details (like quick-actions)
-        detailsEl.innerHTML = `
-            <div class="detail-chip">
-                <span class="chip-icon">💧</span>
-                <span class="chip-label">Humidity</span>
-                <span class="chip-value">${this.currentWeather.humidity}%</span>
-            </div>
-            <div class="detail-chip">
-                <span class="chip-icon">💨</span>
-                <span class="chip-label">Wind</span>
-                <span class="chip-value">${this.currentWeather.wind_speed} km/h ${this.getWindDirection(this.currentWeather.wind_direction)}</span>
-            </div>
-            <div class="detail-chip">
-                <span class="chip-icon">👁️</span>
-                <span class="chip-label">Visibility</span>
-                <span class="chip-value">${this.currentWeather.visibility} km</span>
-            </div>
-            <div class="detail-chip">
-                <span class="chip-icon">🌡️</span>
-                <span class="chip-label">Pressure</span>
-                <span class="chip-value">${this.currentWeather.pressure} hPa</span>
-            </div>
-            <div class="detail-chip">
-                <span class="chip-icon">☀️</span>
-                <span class="chip-label">UV Index</span>
-                <span class="chip-value">${this.currentWeather.clouds < 30 ? 'High' : 'Moderate'}</span>
-            </div>
-            <div class="detail-chip">
-                <span class="chip-icon">🌅</span>
-                <span class="chip-label">Sunrise</span>
-                <span class="chip-value">${sunrise.toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'})}</span>
-            </div>
-        `;
+        // Update stat chips in the combined stats bar
+        const humidityEl = document.getElementById('statHumidity');
+        const windEl = document.getElementById('statWind');
+        const visibilityEl = document.getElementById('statVisibility');
+        const pressureEl = document.getElementById('statPressure');
+        const uvEl = document.getElementById('statUV');
+        const sunriseEl = document.getElementById('statSunrise');
+
+        if (humidityEl) humidityEl.textContent = `💧 ${this.currentWeather.humidity}%`;
+        if (windEl) windEl.textContent = `💨 ${this.currentWeather.wind_speed} km/h`;
+        if (visibilityEl) visibilityEl.textContent = `👁️ ${this.currentWeather.visibility} km`;
+        if (pressureEl) pressureEl.textContent = `🌡️ ${this.currentWeather.pressure} hPa`;
+        if (uvEl) uvEl.textContent = `☀️ ${this.currentWeather.clouds < 30 ? 'High' : 'Low'} UV`;
+        if (sunriseEl) sunriseEl.textContent = `🌅 ${sunrise.toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'})}`;
     }
     
     generateInsights() {

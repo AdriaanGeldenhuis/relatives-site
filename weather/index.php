@@ -41,7 +41,7 @@ try {
 
 $pageTitle = 'Weather';
 $activePage = 'weather';
-$cacheVersion = '4.1.1';
+$cacheVersion = '4.2.0';
 $pageCSS = ['/weather/css/weather.css?v=' . $cacheVersion];
 $pageJS = ['/weather/js/weather.js?v=' . $cacheVersion];
 
@@ -111,13 +111,16 @@ require_once __DIR__ . '/../shared/components/header.php';
             </div>
         </div>
 
-        <!-- Weather Stats Bar (Like Schedule Week Stats) -->
+        <!-- Today's Weather Details (Combined Stats Bar) -->
         <div class="stats-bar glass-card" id="weatherStats" style="display: none;">
-            <div class="stats-title">Today:</div>
-            <div class="stats-chips">
+            <div class="stats-title">Today</div>
+            <div id="weatherDetails" class="stats-chips">
                 <div class="stat-chip" id="statHumidity">💧 --</div>
                 <div class="stat-chip" id="statWind">💨 --</div>
+                <div class="stat-chip" id="statVisibility">👁️ --</div>
+                <div class="stat-chip" id="statPressure">🌡️ --</div>
                 <div class="stat-chip" id="statUV">☀️ --</div>
+                <div class="stat-chip" id="statSunrise">🌅 --</div>
             </div>
         </div>
 
@@ -163,48 +166,6 @@ require_once __DIR__ . '/../shared/components/header.php';
                         <div class="loading-spinner">☁️</div>
                         <p>Loading hourly forecast...</p>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Weather Details Section (Compact like Quick Actions) -->
-        <div class="notes-section">
-            <div class="section-header">
-                <h2 class="section-title">
-                    <span>📊</span> Details
-                </h2>
-            </div>
-
-            <div id="weatherDetails" class="details-chips">
-                <div class="detail-chip skeleton-chip">
-                    <span class="chip-icon">💧</span>
-                    <span class="chip-label">Humidity</span>
-                    <span class="chip-value">--</span>
-                </div>
-                <div class="detail-chip skeleton-chip">
-                    <span class="chip-icon">💨</span>
-                    <span class="chip-label">Wind</span>
-                    <span class="chip-value">--</span>
-                </div>
-                <div class="detail-chip skeleton-chip">
-                    <span class="chip-icon">👁️</span>
-                    <span class="chip-label">Visibility</span>
-                    <span class="chip-value">--</span>
-                </div>
-                <div class="detail-chip skeleton-chip">
-                    <span class="chip-icon">🌡️</span>
-                    <span class="chip-label">Pressure</span>
-                    <span class="chip-value">--</span>
-                </div>
-                <div class="detail-chip skeleton-chip">
-                    <span class="chip-icon">☀️</span>
-                    <span class="chip-label">UV Index</span>
-                    <span class="chip-value">--</span>
-                </div>
-                <div class="detail-chip skeleton-chip">
-                    <span class="chip-icon">🌅</span>
-                    <span class="chip-label">Sunrise</span>
-                    <span class="chip-value">--</span>
                 </div>
             </div>
         </div>
