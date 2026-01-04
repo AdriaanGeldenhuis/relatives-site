@@ -263,7 +263,17 @@ public function login(string $email, string $password): array {
                 error_log("Failed to send welcome email: " . $e->getMessage());
             }
         }
-        
+
+        // Notify family members about new member
+        try {
+            require_once __DIR__ . '/NotificationManager.php';
+            require_once __DIR__ . '/NotificationTriggers.php';
+            $triggers = new NotificationTriggers($this->db);
+            $triggers->onFamilyMemberJoined((int)$family['id'], $userId, $fullName);
+        } catch (Exception $e) {
+            error_log("Failed to send family member joined notification: " . $e->getMessage());
+        }
+
         return [
             'success' => true,
             'user_id' => $userId,

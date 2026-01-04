@@ -471,7 +471,31 @@ class NotificationTriggers {
     }
     
     // ==================== NOTES ====================
-    
+
+    public function onNoteCreated(int $noteId, int $createdBy, int $familyId, string $noteTitle, string $noteType) {
+        $stmt = $this->db->prepare("SELECT full_name FROM users WHERE id = ?");
+        $stmt->execute([$createdBy]);
+        $creator = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        $typeLabel = $noteType === 'voice' ? 'voice note' : 'note';
+        $icon = $noteType === 'voice' ? '🎤' : '📝';
+
+        $this->notifManager->createForFamily($familyId, [
+            'from_user_id' => $createdBy,
+            'type' => NotificationManager::TYPE_NOTE,
+            'title' => 'New Note Added',
+            'message' => ($creator['full_name'] ?? 'Someone') . " added a new $typeLabel" . (!empty($noteTitle) ? ": \"$noteTitle\"" : ''),
+            'action_url' => '/notes/',
+            'priority' => NotificationManager::PRIORITY_LOW,
+            'icon' => $icon,
+            'vibrate' => 0,
+            'data' => [
+                'note_id' => $noteId,
+                'note_type' => $noteType
+            ]
+        ], $createdBy);
+    }
+
     public function onNoteShared(int $noteId, int $sharedBy, int $sharedWith, string $noteTitle) {
         $stmt = $this->db->prepare("SELECT full_name FROM users WHERE id = ?");
         $stmt->execute([$sharedBy]);
