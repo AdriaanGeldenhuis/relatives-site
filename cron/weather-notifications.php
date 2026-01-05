@@ -172,49 +172,77 @@ try {
             $location = $weatherData['name'] ?? 'Your location';
             $humidity = $weatherData['main']['humidity'] ?? 0;
             $windSpeed = round(($weatherData['wind']['speed'] ?? 0) * 3.6);
-            
-            // Build message
-            $message = "Good morning! ☀️\n\n";
-            $message .= "📍 $location\n";
-            $message .= "🌡️ $temp°C (feels like $feelsLike°C)\n";
-            $message .= "☁️ $description\n";
-            $message .= "💧 Humidity: $humidity%\n";
-            $message .= "💨 Wind: $windSpeed km/h";
-            
-            // Add forecast highlights
+
+            // Get weather icon based on condition
+            $weatherIcons = [
+                'Clear' => '☀️',
+                'Clouds' => '☁️',
+                'Rain' => '🌧️',
+                'Drizzle' => '🌦️',
+                'Thunderstorm' => '⛈️',
+                'Snow' => '❄️',
+                'Mist' => '🌫️',
+                'Fog' => '🌫️',
+                'Haze' => '🌫️',
+                'Smoke' => '🌫️',
+                'Dust' => '🌫️'
+            ];
+            $weatherIcon = $weatherIcons[$condition] ?? '🌤️';
+
+            // Get forecast data for high/low temps
+            $maxTemp = $temp;
+            $minTemp = $temp;
+            $rainChance = 0;
+
             if ($forecastData && isset($forecastData['list'])) {
-                $maxTemp = max(array_column(array_column($forecastData['list'], 'main'), 'temp_max'));
-                $minTemp = min(array_column(array_column($forecastData['list'], 'main'), 'temp_min'));
-                $message .= "\n\n📊 Today: " . round($maxTemp) . "°C / " . round($minTemp) . "°C";
-                
+                $maxTemp = round(max(array_column(array_column($forecastData['list'], 'main'), 'temp_max')));
+                $minTemp = round(min(array_column(array_column($forecastData['list'], 'main'), 'temp_min')));
+
                 // Check for rain
-                $rainChance = 0;
                 foreach ($forecastData['list'] as $item) {
                     if (isset($item['pop'])) {
-                        $rainChance = max($rainChance, $item['pop'] * 100);
+                        $rainChance = max($rainChance, round($item['pop'] * 100));
                     }
                 }
-                if ($rainChance > 30) {
-                    $message .= "\n☔ Rain chance: " . round($rainChance) . "%";
-                }
             }
-            
-            // Add advice
+
+            // Build CLEAN title (like Google's weather notification)
+            // Format: "☁️ 27° / 14° · Bophelong"
+            $title = "$weatherIcon $maxTemp° / $minTemp° · $location";
+
+            // Build CLEAN message body
+            // Line 1: Condition and feels like
+            $message = "$description · Feels $feelsLike°";
+
+            // Line 2: Rain chance if significant, humidity, wind (compact)
+            $stats = [];
+            if ($rainChance > 20) {
+                $stats[] = "☔ $rainChance%";
+            }
+            $stats[] = "💧 $humidity%";
+            $stats[] = "💨 $windSpeed km/h";
+            $message .= "\n" . implode(" · ", $stats);
+
+            // Line 3: Smart advice (only if relevant)
             if ($temp > 30) {
-                $message .= "\n\n💡 Hot day ahead! Stay hydrated.";
-            } elseif ($temp < 15) {
-                $message .= "\n\n💡 Chilly morning! Bundle up.";
+                $message .= "\n🔥 Stay hydrated today!";
+            } elseif ($temp < 10) {
+                $message .= "\n🧥 Bundle up, it's cold!";
+            } elseif ($rainChance > 60) {
+                $message .= "\n☂️ Take an umbrella!";
+            } elseif ($temp >= 10 && $temp <= 15) {
+                $message .= "\n🍂 Chilly morning!";
             }
             
             // Create notification
             $notificationData = [
                 'user_id' => $user['user_id'],
                 'type' => NotificationManager::TYPE_WEATHER,
-                'title' => "Good Morning - Today's Weather",
+                'title' => $title,
                 'message' => $message,
-                'action_url' => '/notifications/',
+                'action_url' => '/weather/',
                 'priority' => NotificationManager::PRIORITY_LOW,
-                'icon' => $weatherData['weather'][0]['icon'] ?? '🌤️',
+                'icon' => $weatherIcon,
                 'vibrate' => 0,
                 'data' => [
                     'temperature' => $temp,

@@ -240,35 +240,84 @@ try {
                 throw new Exception('Invalid weather response');
             }
 
-            // Prepare notification
+            // Prepare notification - same format as cron job
             $temp = round($weatherData['main']['temp']);
             $feelsLike = round($weatherData['main']['feels_like']);
+            $condition = $weatherData['weather'][0]['main'] ?? 'Clear';
             $description = ucfirst($weatherData['weather'][0]['description'] ?? 'clear sky');
             $locationName = $weatherData['name'] ?? 'Your location';
             $humidity = $weatherData['main']['humidity'] ?? 0;
             $windSpeed = round(($weatherData['wind']['speed'] ?? 0) * 3.6);
 
-            $message = "Test Weather Update\n\n";
-            $message .= "📍 $locationName\n";
-            $message .= "🌡️ $temp°C (feels like $feelsLike°C)\n";
-            $message .= "☁️ $description\n";
-            $message .= "💧 Humidity: $humidity%\n";
-            $message .= "💨 Wind: $windSpeed km/h";
+            // Get weather icon based on condition
+            $weatherIcons = [
+                'Clear' => '☀️',
+                'Clouds' => '☁️',
+                'Rain' => '🌧️',
+                'Drizzle' => '🌦️',
+                'Thunderstorm' => '⛈️',
+                'Snow' => '❄️',
+                'Mist' => '🌫️',
+                'Fog' => '🌫️',
+                'Haze' => '🌫️'
+            ];
+            $weatherIcon = $weatherIcons[$condition] ?? '🌤️';
+
+            // Get forecast for high/low temps
+            $forecastUrl = "https://api.openweathermap.org/data/2.5/forecast?lat={$lat}&lon={$lon}&appid={$apiKey}&units=metric&cnt=8";
+            $forecastResponse = @file_get_contents($forecastUrl);
+            $forecastData = $forecastResponse ? json_decode($forecastResponse, true) : null;
+
+            $maxTemp = $temp;
+            $minTemp = $temp;
+            $rainChance = 0;
+
+            if ($forecastData && isset($forecastData['list'])) {
+                $maxTemp = round(max(array_column(array_column($forecastData['list'], 'main'), 'temp_max')));
+                $minTemp = round(min(array_column(array_column($forecastData['list'], 'main'), 'temp_min')));
+                foreach ($forecastData['list'] as $item) {
+                    if (isset($item['pop'])) {
+                        $rainChance = max($rainChance, round($item['pop'] * 100));
+                    }
+                }
+            }
+
+            // Build CLEAN title (like Google's weather notification)
+            $title = "$weatherIcon $maxTemp° / $minTemp° · $locationName";
+
+            // Build CLEAN message body
+            $message = "$description · Feels $feelsLike°";
+            $stats = [];
+            if ($rainChance > 20) {
+                $stats[] = "☔ $rainChance%";
+            }
+            $stats[] = "💧 $humidity%";
+            $stats[] = "💨 $windSpeed km/h";
+            $message .= "\n" . implode(" · ", $stats);
+
+            // Smart advice
+            if ($temp > 30) {
+                $message .= "\n🔥 Stay hydrated today!";
+            } elseif ($temp < 10) {
+                $message .= "\n🧥 Bundle up, it's cold!";
+            } elseif ($rainChance > 60) {
+                $message .= "\n☂️ Take an umbrella!";
+            }
 
             $notifManager = NotificationManager::getInstance($db);
             $notifId = $notifManager->create([
                 'user_id' => $userId,
                 'type' => NotificationManager::TYPE_WEATHER,
-                'title' => "Weather Test - $locationName",
+                'title' => $title,
                 'message' => $message,
-                'action_url' => '/notifications/',
+                'action_url' => '/weather/',
                 'priority' => NotificationManager::PRIORITY_NORMAL,
-                'icon' => '🌤️',
+                'icon' => $weatherIcon,
                 'vibrate' => 1,
                 'data' => [
                     'test' => true,
                     'temperature' => $temp,
-                    'condition' => $weatherData['weather'][0]['main'] ?? 'Clear'
+                    'condition' => $condition
                 ]
             ]);
 
