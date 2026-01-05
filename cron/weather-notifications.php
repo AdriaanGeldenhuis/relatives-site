@@ -216,32 +216,33 @@ try {
             }
 
             // ============================================
-            // GOOGLE-STYLE CLEAN NOTIFICATION
+            // CLEAN WEATHER NOTIFICATION
             // ============================================
 
-            // Title: Simple like Google "23° in Vanderbijlpark"
+            // Title: Current temp and location
             $title = "{$temp}° in {$locationName}";
 
-            // Body: Clean and informative
-            $messageParts = [];
-            $messageParts[] = "{$description}";
-            $messageParts[] = "H:{$maxTemp}° L:{$minTemp}°";
-            if ($feelsLike !== null && abs($feelsLike - $temp) >= 2) {
-                $messageParts[] = "Feels {$feelsLike}°";
+            // Body Line 1: High/Low and condition
+            $line1Parts = [];
+            if ($maxTemp != $minTemp) {
+                $line1Parts[] = "↑{$maxTemp}° ↓{$minTemp}°";
             }
+            $line1Parts[] = $description;
 
-            $message = implode(" · ", $messageParts);
+            // Body Line 2: Feels like, rain, wind
+            $line2Parts = [];
+            if ($feelsLike !== null) {
+                $line2Parts[] = "Feels {$feelsLike}°";
+            }
+            if ($rainChance > 0) {
+                $line2Parts[] = "☔ {$rainChance}%";
+            }
+            $line2Parts[] = "💨 {$windSpeed}km/h";
 
-            // Second line: rain and wind if notable
-            $extras = [];
-            if ($rainChance >= 20) {
-                $extras[] = "☔ {$rainChance}% rain";
-            }
-            if ($windSpeed >= 20) {
-                $extras[] = "💨 {$windSpeed} km/h";
-            }
-            if (!empty($extras)) {
-                $message .= "\n" . implode(" · ", $extras);
+            // Combine
+            $message = implode(" · ", $line1Parts);
+            if (!empty($line2Parts)) {
+                $message .= "\n" . implode(" · ", $line2Parts);
             }
             
             // Create notification
