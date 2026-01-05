@@ -127,7 +127,8 @@ try {
                     $title,
                     date('M j, Y \a\t g:i A', strtotime($startsAt))
                 );
-            } catch (Exception $notifError) {
+            } catch (Throwable $notifError) {
+                // Catch ALL errors (Exception and Error) to prevent breaking the response
                 error_log("Notification error (non-fatal): " . $notifError->getMessage());
             }
 
@@ -685,16 +686,20 @@ try {
             $stmt->execute([$eventId]);
             $event = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            // SEND NOTIFICATION TO FAMILY
-            require_once __DIR__ . '/../../core/NotificationTriggers.php';
-            $triggers = new NotificationTriggers($db);
-            $triggers->onBirthdayCreated(
-                $eventId,
-                $user['id'],
-                $user['family_id'],
-                $name,
-                $startsAt
-            );
+            // SEND NOTIFICATION TO FAMILY (wrapped in try-catch)
+            try {
+                require_once __DIR__ . '/../../core/NotificationTriggers.php';
+                $triggers = new NotificationTriggers($db);
+                $triggers->onBirthdayCreated(
+                    $eventId,
+                    $user['id'],
+                    $user['family_id'],
+                    $name,
+                    $startsAt
+                );
+            } catch (Throwable $notifError) {
+                error_log("Birthday notification error (non-fatal): " . $notifError->getMessage());
+            }
 
             echo json_encode([
                 'success' => true,

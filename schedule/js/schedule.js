@@ -2097,12 +2097,12 @@ window.addEventListener('beforeunload', () => {
 });
 
 // Export functions to global scope
-window.addEvent = addEvent;
+window.saveScheduleEvent = saveScheduleEvent;
 window.toggleEvent = toggleEvent;
 window.deleteEvent = deleteEvent;
 window.duplicateEvent = duplicateEvent;
 window.editEvent = editEvent;
-window.saveEditedEvent = saveEditedEvent;
+window.saveScheduleChanges = saveScheduleChanges;
 window.clearDone = clearDone;
 window.toggleBulkMode = toggleBulkMode;
 window.bulkMarkDone = bulkMarkDone;
