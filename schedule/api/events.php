@@ -66,10 +66,19 @@ try {
                 throw new Exception('Missing required fields');
             }
 
-            // Validate kind - expanded to include all types
-            $validKinds = ['study', 'work', 'todo', 'break', 'focus', 'birthday', 'event', 'other'];
+            // Validate kind - all types for both calendar and schedule
+            // Calendar types: birthday, anniversary, holiday, family_event, date, reminder
+            // Schedule types: work, study, church, event, focus, break, todo
+            $validKinds = [
+                // Calendar types
+                'birthday', 'anniversary', 'holiday', 'family_event', 'date', 'reminder',
+                // Schedule types
+                'work', 'study', 'church', 'event', 'focus', 'break', 'todo',
+                // Legacy/general
+                'other'
+            ];
             if (!in_array($kind, $validKinds)) {
-                $kind = 'todo'; // Default fallback
+                $kind = 'event'; // Default fallback
             }
 
             $startsAt = $date . ' ' . $startTime . ':00';
@@ -232,8 +241,15 @@ try {
                 $eventDate = date('Y-m-d', strtotime($event['starts_at']));
                 $duration = (strtotime($event['ends_at']) - strtotime($event['starts_at'])) / 60;
 
-                $column = $event['kind'] === 'study' ? 'study_minutes' :
-                         ($event['kind'] === 'work' ? 'work_minutes' : 'focus_minutes');
+                // Map event kinds to productivity columns
+                $columnMap = [
+                    'study' => 'study_minutes',
+                    'work' => 'work_minutes',
+                    'church' => 'work_minutes', // Church counts as productive time
+                    'focus' => 'focus_minutes',
+                    'event' => 'work_minutes',
+                ];
+                $column = $columnMap[$event['kind']] ?? 'focus_minutes';
 
                 $stmt = $db->prepare("
                     INSERT INTO schedule_productivity

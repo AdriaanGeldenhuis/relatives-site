@@ -17,9 +17,11 @@
     /* Schedule Specific Colors */
     --schedule-study: #667eea;
     --schedule-work: #43e97b;
+    --schedule-church: #9b59b6;
+    --schedule-event: #3498db;
     --schedule-todo: #f093fb;
     --schedule-break: #feca57;
-    --schedule-focus: #9c27b0;
+    --schedule-focus: #4facfe;
     
     /* Glassmorphism */
     --glass-light: rgba(255, 255, 255, 0.08);
@@ -1867,8 +1869,10 @@ textarea.form-control {
 
 .type-btn.study { border-color: var(--schedule-study); background: rgba(102, 126, 234, 0.2); }
 .type-btn.work { border-color: var(--schedule-work); background: rgba(67, 233, 123, 0.2); }
+.type-btn.church { border-color: var(--schedule-church); background: rgba(155, 89, 182, 0.2); }
+.type-btn.event { border-color: var(--schedule-event); background: rgba(52, 152, 219, 0.2); }
 .type-btn.todo { border-color: var(--schedule-todo); background: rgba(240, 147, 251, 0.2); }
-.type-btn.focus { border-color: var(--schedule-focus); background: rgba(156, 39, 176, 0.2); }
+.type-btn.focus { border-color: var(--schedule-focus); background: rgba(79, 172, 254, 0.2); }
 .type-btn.break { border-color: var(--schedule-break); background: rgba(254, 202, 87, 0.2); }
 
 /* ============================================
