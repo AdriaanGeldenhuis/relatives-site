@@ -302,34 +302,42 @@ try {
             }
 
             // ============================================
-            // CLEAN WEATHER NOTIFICATION
+            // BEAUTIFUL WEATHER NOTIFICATION
             // ============================================
 
-            // Title: Current temp and location
-            $title = "{$temp}° in {$locationName}";
+            // Title: Icon + temp + location
+            $title = "{$weatherIcon} {$temp}° in {$locationName}";
 
-            // Body Line 1: High/Low and condition
-            $line1Parts = [];
+            // Body: Multi-line beautiful format
+            $lines = [];
+
+            // Line 1: Condition
+            $lines[] = $description;
+
+            // Line 2: High/Low/Feels
+            $tempLine = [];
             if ($maxTemp != $minTemp) {
-                $line1Parts[] = "↑{$maxTemp}° ↓{$minTemp}°";
+                $tempLine[] = "↑ {$maxTemp}°";
+                $tempLine[] = "↓ {$minTemp}°";
             }
-            $line1Parts[] = $description;
+            if ($feelsLike !== null && $feelsLike != $temp) {
+                $tempLine[] = "Feels {$feelsLike}°";
+            }
+            if (!empty($tempLine)) {
+                $lines[] = implode(" · ", $tempLine);
+            }
 
-            // Body Line 2: Feels like, rain, wind, humidity
-            $line2Parts = [];
-            if ($feelsLike !== null) {
-                $line2Parts[] = "Feels {$feelsLike}°";
-            }
+            // Line 3: Rain, Humidity, Wind
+            $statsLine = [];
             if ($rainChance > 0) {
-                $line2Parts[] = "☔ {$rainChance}%";
+                $statsLine[] = "☔ {$rainChance}%";
             }
-            $line2Parts[] = "💨 {$windSpeed}km/h";
+            $humidity = $weatherData['main']['humidity'] ?? 0;
+            $statsLine[] = "💧 {$humidity}%";
+            $statsLine[] = "💨 {$windSpeed} km/h";
+            $lines[] = implode(" · ", $statsLine);
 
-            // Combine
-            $message = implode(" · ", $line1Parts);
-            if (!empty($line2Parts)) {
-                $message .= "\n" . implode(" · ", $line2Parts);
-            }
+            $message = implode("\n", $lines);
 
             $notifManager = NotificationManager::getInstance($db);
             $notifId = $notifManager->create([
