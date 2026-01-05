@@ -186,6 +186,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $eventId = (int)$_POST['event_id'];
                 $title = trim($_POST['title'] ?? '');
                 $notes = trim($_POST['notes'] ?? '');
+                $eventLocation = trim($_POST['location'] ?? '');
                 $startsAt = $_POST['starts_at'] ?? '';
                 $endsAt = $_POST['ends_at'] ?? '';
                 $allDay = (int)($_POST['all_day'] ?? 0);
@@ -210,7 +211,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 $stmt = $db->prepare("
                     UPDATE events
-                    SET title = ?, notes = ?, starts_at = ?, ends_at = ?,
+                    SET title = ?, notes = ?, location = ?, starts_at = ?, ends_at = ?,
                         all_day = ?, color = ?, reminder_minutes = ?,
                         kind = ?, recurrence_rule = ?, updated_at = NOW()
                     WHERE id = ? AND family_id = ?
@@ -218,6 +219,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt->execute([
                     $title,
                     $notes,
+                    $eventLocation,
                     $startsAt,
                     $endsAt ?: $startsAt,
                     $allDay,
@@ -498,7 +500,7 @@ $doneEvents = count(array_filter($events, fn($e) => $e['status'] === 'done'));
 
 $pageTitle = 'Calendar';
 $activePage = 'calendar';
-$cacheVersion = '3.5.0';
+$cacheVersion = '4.0.0';
 $pageCSS = ['/calendar/css/calendar.css?v=' . $cacheVersion];
 $pageJS = ['/calendar/js/calendar.js?v=' . $cacheVersion];
 
@@ -600,17 +602,16 @@ require_once __DIR__ . '/../shared/components/header.php';
                                     
                                     <?php if (!empty($dayEvents)): ?>
                                         <div class="day-events">
-                                            <?php foreach (array_slice($dayEvents, 0, 3) as $event): ?>
-                                                <div class="day-event" 
-                                                     style="background: <?php echo htmlspecialchars($event['color']); ?>;"
-                                                     onclick="event.stopPropagation(); showEventDetails(<?php echo $event['id']; ?>)">
-                                                    <?php echo htmlspecialchars($event['title']); ?>
+                                            <?php foreach (array_slice($dayEvents, 0, 2) as $event): ?>
+                                                <div class="day-event"
+                                                     style="background: <?php echo htmlspecialchars($event['color']); ?>;">
+                                                    <?php echo htmlspecialchars(mb_substr($event['title'], 0, 12)); ?><?php echo mb_strlen($event['title']) > 12 ? '...' : ''; ?>
                                                 </div>
                                             <?php endforeach; ?>
-                                            
-                                            <?php if (count($dayEvents) > 3): ?>
+
+                                            <?php if (count($dayEvents) > 2): ?>
                                                 <div class="day-event-more">
-                                                    +<?php echo count($dayEvents) - 3; ?> more
+                                                    +<?php echo count($dayEvents) - 2; ?> more
                                                 </div>
                                             <?php endif; ?>
                                         </div>
@@ -749,6 +750,23 @@ require_once __DIR__ . '/../shared/components/header.php';
     </div>
 </main>
 
+<!-- Day Events Overlay Modal -->
+<div id="dayEventsModal" class="modal">
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h2 id="dayEventsTitle">📅 Events</h2>
+            <button onclick="closeModal('dayEventsModal')" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="dayEventsList" class="day-events-list-modal"></div>
+            <div class="modal-actions">
+                <button type="button" onclick="addEventForDay()" class="btn btn-primary">➕ Add Event</button>
+                <button type="button" onclick="closeModal('dayEventsModal')" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="createEventModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -756,53 +774,7 @@ require_once __DIR__ . '/../shared/components/header.php';
             <button onclick="closeModal('createEventModal')" class="modal-close">&times;</button>
         </div>
         <div class="modal-body">
-            <form onsubmit="createEvent(event)">
-                
-                <div class="form-group">
-                    <label>Event Title *</label>
-                    <input type="text" 
-                           id="eventTitle" 
-                           class="form-control" 
-                           placeholder="e.g., Family Dinner, Birthday Party"
-                           value="<?php echo htmlspecialchars($voicePrefillContent); ?>"
-                           required>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group" style="flex: 1;">
-                        <label>Start Date *</label>
-                        <input type="date" id="eventStartDate" class="form-control" 
-                               value="<?php echo date('Y-m-d'); ?>" required>
-                    </div>
-                    <div class="form-group" style="flex: 1;">
-                        <label>Start Time</label>
-                        <input type="time" id="eventStartTime" class="form-control">
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group" style="flex: 1;">
-                        <label>End Date</label>
-                        <input type="date" id="eventEndDate" class="form-control">
-                    </div>
-                    <div class="form-group" style="flex: 1;">
-                        <label>End Time</label>
-                        <input type="time" id="eventEndTime" class="form-control">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="eventAllDay" onchange="toggleAllDay()">
-                        All Day Event
-                    </label>
-                </div>
-
-                <div class="form-group">
-                    <label>Notes (optional)</label>
-                    <textarea id="eventNotes" class="form-control" rows="3"
-                              placeholder="Add any details..."></textarea>
-                </div>
+            <div id="createEventForm">
 
                 <div class="form-group">
                     <label>Event Type</label>
@@ -818,6 +790,58 @@ require_once __DIR__ . '/../shared/components/header.php';
                 </div>
 
                 <div class="form-group">
+                    <label>Event Title *</label>
+                    <input type="text"
+                           id="eventTitle"
+                           class="form-control"
+                           placeholder="e.g., Family Dinner, Birthday Party"
+                           value="<?php echo htmlspecialchars($voicePrefillContent); ?>">
+                </div>
+
+                <div class="form-group">
+                    <label>Date *</label>
+                    <input type="date" id="eventStartDate" class="form-control"
+                           value="<?php echo date('Y-m-d'); ?>">
+                </div>
+
+                <div id="eventTimeSection">
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 1;">
+                            <label>Start Time</label>
+                            <input type="time" id="eventStartTime" class="form-control">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>End Time</label>
+                            <input type="time" id="eventEndTime" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>End Date (if different)</label>
+                        <input type="date" id="eventEndDate" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="eventAllDay" onchange="toggleAllDay()">
+                            All Day Event
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Location (optional)</label>
+                    <input type="text" id="eventLocation" class="form-control"
+                           placeholder="e.g., Home, Restaurant, Park">
+                </div>
+
+                <div class="form-group">
+                    <label>Notes (optional)</label>
+                    <textarea id="eventNotes" class="form-control" rows="3"
+                              placeholder="Add any details..."></textarea>
+                </div>
+
+                <div class="form-group" id="eventRepeatSection">
                     <label>Repeat</label>
                     <select id="eventRecurrence" class="form-control">
                         <option value="">No repeat</option>
@@ -843,14 +867,14 @@ require_once __DIR__ . '/../shared/components/header.php';
                 <div class="form-group">
                     <label>Color</label>
                     <div class="color-picker">
-                        <input type="radio" name="eventColor" value="#3498db" id="ecolor1" checked>
-                        <label for="ecolor1" class="color-option" style="background: #3498db;"></label>
+                        <input type="radio" name="eventColor" value="#e74c3c" id="ecolor1">
+                        <label for="ecolor1" class="color-option" style="background: #e74c3c;"></label>
 
                         <input type="radio" name="eventColor" value="#9b59b6" id="ecolor2">
                         <label for="ecolor2" class="color-option" style="background: #9b59b6;"></label>
 
-                        <input type="radio" name="eventColor" value="#e74c3c" id="ecolor3">
-                        <label for="ecolor3" class="color-option" style="background: #e74c3c;"></label>
+                        <input type="radio" name="eventColor" value="#3498db" id="ecolor3" checked>
+                        <label for="ecolor3" class="color-option" style="background: #3498db;"></label>
 
                         <input type="radio" name="eventColor" value="#2ecc71" id="ecolor4">
                         <label for="ecolor4" class="color-option" style="background: #2ecc71;"></label>
@@ -864,10 +888,10 @@ require_once __DIR__ . '/../shared/components/header.php';
                 </div>
 
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button type="submit" class="btn btn-primary" style="flex: 1;">Create Event</button>
+                    <button type="button" onclick="saveNewEvent()" class="btn btn-primary" style="flex: 1;">Create Event</button>
                     <button type="button" onclick="closeModal('createEventModal')" class="btn btn-secondary">Cancel</button>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
@@ -891,47 +915,8 @@ require_once __DIR__ . '/../shared/components/header.php';
             <button onclick="closeModal('editEventModal')" class="modal-close">&times;</button>
         </div>
         <div class="modal-body">
-            <form onsubmit="updateEvent(event)">
+            <div id="editEventForm">
                 <input type="hidden" id="editEventId">
-
-                <div class="form-group">
-                    <label>Event Title *</label>
-                    <input type="text" id="editEventTitle" class="form-control" required>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group" style="flex: 1;">
-                        <label>Start Date *</label>
-                        <input type="date" id="editEventStartDate" class="form-control" required>
-                    </div>
-                    <div class="form-group" style="flex: 1;">
-                        <label>Start Time</label>
-                        <input type="time" id="editEventStartTime" class="form-control">
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group" style="flex: 1;">
-                        <label>End Date</label>
-                        <input type="date" id="editEventEndDate" class="form-control">
-                    </div>
-                    <div class="form-group" style="flex: 1;">
-                        <label>End Time</label>
-                        <input type="time" id="editEventEndTime" class="form-control">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="editEventAllDay" onchange="toggleEditAllDay()">
-                        All Day Event
-                    </label>
-                </div>
-
-                <div class="form-group">
-                    <label>Notes (optional)</label>
-                    <textarea id="editEventNotes" class="form-control" rows="3"></textarea>
-                </div>
 
                 <div class="form-group">
                     <label>Event Type</label>
@@ -947,6 +932,52 @@ require_once __DIR__ . '/../shared/components/header.php';
                 </div>
 
                 <div class="form-group">
+                    <label>Event Title *</label>
+                    <input type="text" id="editEventTitle" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label>Date *</label>
+                    <input type="date" id="editEventStartDate" class="form-control">
+                </div>
+
+                <div id="editEventTimeSection">
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 1;">
+                            <label>Start Time</label>
+                            <input type="time" id="editEventStartTime" class="form-control">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>End Time</label>
+                            <input type="time" id="editEventEndTime" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>End Date (if different)</label>
+                        <input type="date" id="editEventEndDate" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="editEventAllDay" onchange="toggleEditAllDay()">
+                            All Day Event
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Location (optional)</label>
+                    <input type="text" id="editEventLocation" class="form-control"
+                           placeholder="e.g., Home, Restaurant, Park">
+                </div>
+
+                <div class="form-group">
+                    <label>Notes (optional)</label>
+                    <textarea id="editEventNotes" class="form-control" rows="3"></textarea>
+                </div>
+
+                <div class="form-group" id="editEventRepeatSection">
                     <label>Repeat</label>
                     <select id="editEventRecurrence" class="form-control">
                         <option value="">No repeat</option>
@@ -972,14 +1003,14 @@ require_once __DIR__ . '/../shared/components/header.php';
                 <div class="form-group">
                     <label>Color</label>
                     <div class="color-picker">
-                        <input type="radio" name="editEventColor" value="#3498db" id="edit_ecolor1">
-                        <label for="edit_ecolor1" class="color-option" style="background: #3498db;"></label>
+                        <input type="radio" name="editEventColor" value="#e74c3c" id="edit_ecolor1">
+                        <label for="edit_ecolor1" class="color-option" style="background: #e74c3c;"></label>
 
                         <input type="radio" name="editEventColor" value="#9b59b6" id="edit_ecolor2">
                         <label for="edit_ecolor2" class="color-option" style="background: #9b59b6;"></label>
 
-                        <input type="radio" name="editEventColor" value="#e74c3c" id="edit_ecolor3">
-                        <label for="edit_ecolor3" class="color-option" style="background: #e74c3c;"></label>
+                        <input type="radio" name="editEventColor" value="#3498db" id="edit_ecolor3">
+                        <label for="edit_ecolor3" class="color-option" style="background: #3498db;"></label>
 
                         <input type="radio" name="editEventColor" value="#2ecc71" id="edit_ecolor4">
                         <label for="edit_ecolor4" class="color-option" style="background: #2ecc71;"></label>
@@ -993,10 +1024,10 @@ require_once __DIR__ . '/../shared/components/header.php';
                 </div>
 
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button type="submit" class="btn btn-primary" style="flex: 1;">Save Changes</button>
+                    <button type="button" onclick="saveEventChanges()" class="btn btn-primary" style="flex: 1;">Save Changes</button>
                     <button type="button" onclick="closeModal('editEventModal')" class="btn btn-secondary">Cancel</button>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
@@ -1029,5 +1060,6 @@ document.addEventListener('DOMContentLoaded', function() {
     window.events = <?php echo json_encode($events); ?>;
     window.calendarView = 'month';
 </script>
+<script type="application/json" id="eventsData"><?php echo json_encode($events); ?></script>
 
 <?php require_once __DIR__ . '/../shared/components/footer.php'; ?>

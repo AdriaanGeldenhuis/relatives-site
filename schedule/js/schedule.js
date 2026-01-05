@@ -254,9 +254,7 @@ async function apiCall(endpoint, data = {}, method = 'POST') {
 // ============================================
 // ADD EVENT
 // ============================================
-async function addEvent(event) {
-    if (event) event.preventDefault();
-    
+async function saveScheduleEvent() {
     const titleInput = document.getElementById('eventTitle');
     const dateInput = document.getElementById('eventDate');
     const startInput = document.getElementById('eventStart');
@@ -291,8 +289,8 @@ async function addEvent(event) {
         showToast('End time must be after start time', 'error');
         return;
     }
-    
-    const submitBtn = event.target.querySelector('button[type="submit"]');
+
+    const submitBtn = document.getElementById('addEventSubmitBtn');
     const originalBtnText = submitBtn.innerHTML;
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<span class="btn-icon">⏳</span><span class="btn-text">Adding...</span>';
@@ -323,15 +321,19 @@ async function addEvent(event) {
         }
         
         showToast(`✓ Added "${title}"!`, 'success');
-        
+
+        // Close modal first
+        closeModal('addEventModal');
+
+        // Reset form for next use
         titleInput.value = '';
         reminderCheckbox.checked = false;
         recurringCheckbox.checked = false;
         focusModeCheckbox.checked = false;
         toggleReminderInput();
         toggleRecurringInput();
-        titleInput.focus();
-        
+
+        // Add event to DOM immediately (no refresh needed)
         addEventToDOM(result.event);
         updateStats();
         
@@ -520,9 +522,7 @@ function editEvent(eventId) {
     showModal('editEventModal');
 }
 
-async function saveEditedEvent(event) {
-    if (event) event.preventDefault();
-
+async function saveScheduleChanges() {
     const eventId = document.getElementById('editEventId').value;
     const title = document.getElementById('editEventTitle').value.trim();
     const eventDate = document.getElementById('editEventDate').value;
@@ -559,7 +559,7 @@ async function saveEditedEvent(event) {
     }
 
     // Show loading
-    const submitBtn = event.target.querySelector('button[type="submit"]');
+    const submitBtn = document.getElementById('editEventSubmitBtn');
     const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.textContent = 'Saving...';
@@ -1123,27 +1123,56 @@ async function bulkDelete() {
 // ============================================
 // DATE NAVIGATION
 // ============================================
-function changeDate(days) {
+async function changeDate(days) {
     const current = new Date(window.ScheduleApp.selectedDate);
     current.setDate(current.getDate() + days);
     const newDate = current.toISOString().split('T')[0];
-    
-    window.location.href = `?date=${newDate}&view=${window.ScheduleApp.viewMode}`;
+
+    // Animate out
+    const notesSection = document.querySelector('.notes-section');
+    if (notesSection) {
+        notesSection.style.animation = days > 0
+            ? 'slideOutLeft 0.2s ease forwards'
+            : 'slideOutRight 0.2s ease forwards';
+    }
+
+    // Wait for animation then load
+    await new Promise(resolve => setTimeout(resolve, 200));
+    await loadScheduleData(newDate, days > 0 ? 'slideInRight' : 'slideInLeft');
 }
 
-function goToToday() {
+async function goToToday() {
     const today = new Date().toISOString().split('T')[0];
-    window.location.href = `?date=${today}&view=${window.ScheduleApp.viewMode}`;
+
+    // If already on today, just pulse
+    if (today === window.ScheduleApp.selectedDate) {
+        showToast('Already viewing today!', 'info');
+        return;
+    }
+
+    const notesSection = document.querySelector('.notes-section');
+    if (notesSection) {
+        notesSection.style.animation = 'fadeOut 0.2s ease forwards';
+    }
+
+    await loadScheduleData(today, 'fadeIn');
 }
 
 function showDatePicker() {
     showModal('datePickerModal');
 }
 
-function goToPickedDate() {
+async function goToPickedDate() {
     const date = document.getElementById('datePickerInput').value;
     if (date) {
-        window.location.href = `?date=${date}&view=${window.ScheduleApp.viewMode}`;
+        closeModal('datePickerModal');
+
+        const notesSection = document.querySelector('.notes-section');
+        if (notesSection) {
+            notesSection.style.animation = 'fadeOut 0.2s ease forwards';
+        }
+
+        await loadScheduleData(date, 'fadeIn');
     }
 }
 
@@ -1153,7 +1182,101 @@ function changeView(view) {
     } else if (view === 'timeline') {
         showTimelineView();
     } else {
-        window.location.href = `?date=${window.ScheduleApp.selectedDate}&view=${view}`;
+        // Day view is the default, just reload current date
+        loadScheduleData(window.ScheduleApp.selectedDate, 'fadeIn');
+    }
+}
+
+async function loadScheduleData(date, animationIn) {
+    try {
+        console.log('Loading schedule for date:', date);
+
+        // Fetch the schedule page for the new date
+        const response = await fetch(`?date=${date}&view=${window.ScheduleApp.viewMode}&ajax=1`);
+        const html = await response.text();
+
+        // Parse the HTML
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        // Extract the notes section content
+        const newNotesSection = doc.querySelector('.notes-section');
+
+        // Update the notes section
+        const notesSection = document.querySelector('.notes-section');
+        if (notesSection && newNotesSection) {
+            notesSection.innerHTML = newNotesSection.innerHTML;
+            notesSection.style.animation = `${animationIn} 0.3s ease forwards`;
+        }
+
+        // Update date display elements
+        const newDateValue = doc.querySelector('.date-value');
+        const newDateDay = doc.querySelector('.date-day');
+        const newDateEvents = doc.querySelector('.date-events');
+        const newDateDisplay = doc.querySelector('.date-display');
+
+        console.log('New date values from server:', {
+            value: newDateValue?.textContent,
+            day: newDateDay?.textContent,
+            events: newDateEvents?.textContent
+        });
+
+        const dateValue = document.querySelector('.date-value');
+        const dateDay = document.querySelector('.date-day');
+        const dateEvents = document.querySelector('.date-events');
+        const dateDisplay = document.querySelector('.date-display');
+
+        if (dateValue && newDateValue) {
+            dateValue.textContent = newDateValue.textContent;
+            console.log('Updated date-value to:', newDateValue.textContent);
+        } else {
+            console.log('Could not find date-value elements', { current: !!dateValue, new: !!newDateValue });
+        }
+
+        if (dateDay && newDateDay) {
+            dateDay.textContent = newDateDay.textContent;
+            console.log('Updated date-day to:', newDateDay.textContent);
+        }
+
+        if (dateEvents && newDateEvents) {
+            dateEvents.textContent = newDateEvents.textContent;
+            console.log('Updated date-events to:', newDateEvents.textContent);
+        }
+
+        // Update today class
+        if (dateDisplay && newDateDisplay) {
+            dateDisplay.className = newDateDisplay.className;
+        }
+
+        // Update the date picker input
+        const datePickerInput = document.getElementById('datePickerInput');
+        if (datePickerInput) {
+            datePickerInput.value = date;
+        }
+
+        // Update global state
+        window.ScheduleApp.selectedDate = date;
+
+        // Update events array
+        const eventsDataEl = doc.getElementById('scheduleEventsData');
+        if (eventsDataEl) {
+            try {
+                window.ScheduleApp.allEvents = JSON.parse(eventsDataEl.textContent);
+            } catch (e) {
+                console.error('Failed to parse events data');
+            }
+        }
+
+        // Update URL without refresh
+        const newUrl = `?date=${date}&view=${window.ScheduleApp.viewMode}`;
+        window.history.pushState({ date: date }, '', newUrl);
+
+        console.log('Schedule loaded successfully for:', date);
+
+    } catch (error) {
+        console.error('Failed to load schedule:', error);
+        // Fallback to page refresh
+        window.location.href = `?date=${date}&view=${window.ScheduleApp.viewMode}`;
     }
 }
 
@@ -1240,9 +1363,15 @@ async function showWeekView() {
     }
 }
 
-function goToDate(dateStr) {
+async function goToDate(dateStr) {
     closeModal('weekViewModal');
-    window.location.href = `?date=${dateStr}&view=day`;
+
+    const notesSection = document.querySelector('.notes-section');
+    if (notesSection) {
+        notesSection.style.animation = 'fadeOut 0.2s ease forwards';
+    }
+
+    await loadScheduleData(dateStr, 'fadeIn');
 }
 
 function showTimelineView() {
@@ -2101,12 +2230,12 @@ window.addEventListener('beforeunload', () => {
 });
 
 // Export functions to global scope
-window.addEvent = addEvent;
+window.saveScheduleEvent = saveScheduleEvent;
 window.toggleEvent = toggleEvent;
 window.deleteEvent = deleteEvent;
 window.duplicateEvent = duplicateEvent;
 window.editEvent = editEvent;
-window.saveEditedEvent = saveEditedEvent;
+window.saveScheduleChanges = saveScheduleChanges;
 window.clearDone = clearDone;
 window.toggleBulkMode = toggleBulkMode;
 window.bulkMarkDone = bulkMarkDone;

@@ -533,7 +533,20 @@ require_once __DIR__ . '/../shared/components/header.php';
             <button onclick="closeModal('addEventModal')" class="modal-close">&times;</button>
         </div>
         <div class="modal-body">
-            <form id="quickAddForm" onsubmit="addEvent(event)">
+            <div id="quickAddForm">
+                <div class="form-group">
+                    <label>Event Type</label>
+                    <select id="eventType" class="form-control">
+                        <option value="work">💼 Work</option>
+                        <option value="study">📚 Study</option>
+                        <option value="church">⛪ Church</option>
+                        <option value="event">📅 Event</option>
+                        <option value="focus">🎯 Focus</option>
+                        <option value="break">☕ Break</option>
+                        <option value="todo">✅ To-Do</option>
+                    </select>
+                </div>
+
                 <div class="form-group">
                     <label>What do you want to work on?</label>
                     <input
@@ -574,19 +587,6 @@ require_once __DIR__ . '/../shared/components/header.php';
                             value="<?php echo date('H:00', strtotime('+1 hour')); ?>"
                             required>
                     </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Event Type</label>
-                    <select id="eventType" class="form-control">
-                        <option value="work">💼 Work</option>
-                        <option value="study">📚 Study</option>
-                        <option value="church">⛪ Church</option>
-                        <option value="event">📅 Event</option>
-                        <option value="focus">🎯 Focus</option>
-                        <option value="break">☕ Break</option>
-                        <option value="todo">✅ To-Do</option>
-                    </select>
                 </div>
 
                 <div class="form-group">
@@ -643,10 +643,10 @@ require_once __DIR__ . '/../shared/components/header.php';
                 </div>
 
                 <div class="modal-actions">
-                    <button type="submit" class="btn btn-primary">Add Event</button>
+                    <button type="button" id="addEventSubmitBtn" onclick="saveScheduleEvent()" class="btn btn-primary">Add Event</button>
                     <button type="button" onclick="closeModal('addEventModal')" class="btn btn-secondary">Cancel</button>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
@@ -659,7 +659,7 @@ require_once __DIR__ . '/../shared/components/header.php';
             <button onclick="closeModal('editEventModal')" class="modal-close">&times;</button>
         </div>
         <div class="modal-body">
-            <form id="editEventForm" onsubmit="saveEditedEvent(event)">
+            <div id="editEventForm">
                 <input type="hidden" id="editEventId">
 
                 <div class="form-group">
@@ -767,10 +767,10 @@ require_once __DIR__ . '/../shared/components/header.php';
                 </div>
 
                 <div class="modal-actions">
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" id="editEventSubmitBtn" onclick="saveScheduleChanges()" class="btn btn-primary">Save Changes</button>
                     <button type="button" onclick="closeModal('editEventModal')" class="btn btn-secondary">Cancel</button>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
@@ -971,11 +971,12 @@ window.ScheduleApp = {
     activeFocusSession: <?php echo $activeFocusSession ? json_encode($activeFocusSession) : 'null'; ?>,
     bulkMode: false,
     selectedItems: new Set(),
-    
+
     API: {
         events: '/schedule/api/events.php'
     }
 };
 </script>
+<script type="application/json" id="scheduleEventsData"><?php echo json_encode($events); ?></script>
 
 <?php require_once __DIR__ . '/../shared/components/footer.php'; ?>

@@ -116,16 +116,21 @@ try {
 
             $eventId = $db->lastInsertId();
 
-            // SEND NOTIFICATION TO FAMILY
-            require_once __DIR__ . '/../../core/NotificationTriggers.php';
-            $triggers = new NotificationTriggers($db);
-            $triggers->onScheduleTaskCreated(
-                $eventId,
-                $user['id'],
-                $user['family_id'],
-                $title,
-                date('M j, Y \a\t g:i A', strtotime($startsAt))
-            );
+            // SEND NOTIFICATION TO FAMILY (wrapped in try-catch to not break response)
+            try {
+                require_once __DIR__ . '/../../core/NotificationTriggers.php';
+                $triggers = new NotificationTriggers($db);
+                $triggers->onScheduleTaskCreated(
+                    $eventId,
+                    $user['id'],
+                    $user['family_id'],
+                    $title,
+                    date('M j, Y \a\t g:i A', strtotime($startsAt))
+                );
+            } catch (Throwable $notifError) {
+                // Catch ALL errors (Exception and Error) to prevent breaking the response
+                error_log("Notification error (non-fatal): " . $notifError->getMessage());
+            }
 
             // Handle recurring events
             if ($repeatRule && in_array($repeatRule, ['daily', 'weekly', 'weekdays', 'monthly', 'yearly'])) {
@@ -681,16 +686,20 @@ try {
             $stmt->execute([$eventId]);
             $event = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            // SEND NOTIFICATION TO FAMILY
-            require_once __DIR__ . '/../../core/NotificationTriggers.php';
-            $triggers = new NotificationTriggers($db);
-            $triggers->onBirthdayCreated(
-                $eventId,
-                $user['id'],
-                $user['family_id'],
-                $name,
-                $startsAt
-            );
+            // SEND NOTIFICATION TO FAMILY (wrapped in try-catch)
+            try {
+                require_once __DIR__ . '/../../core/NotificationTriggers.php';
+                $triggers = new NotificationTriggers($db);
+                $triggers->onBirthdayCreated(
+                    $eventId,
+                    $user['id'],
+                    $user['family_id'],
+                    $name,
+                    $startsAt
+                );
+            } catch (Throwable $notifError) {
+                error_log("Birthday notification error (non-fatal): " . $notifError->getMessage());
+            }
 
             echo json_encode([
                 'success' => true,
