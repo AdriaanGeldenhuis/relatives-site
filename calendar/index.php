@@ -1060,5 +1060,6 @@ document.addEventListener('DOMContentLoaded', function() {
     window.events = <?php echo json_encode($events); ?>;
     window.calendarView = 'month';
 </script>
+<script type="application/json" id="eventsData"><?php echo json_encode($events); ?></script>
 
 <?php require_once __DIR__ . '/../shared/components/footer.php'; ?>

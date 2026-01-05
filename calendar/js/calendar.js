@@ -198,10 +198,10 @@ function navigateCalendar(direction) {
     }
 }
 
-function changeMonth(direction) {
+async function changeMonth(direction) {
     let newMonth = window.currentMonth + direction;
     let newYear = window.currentYear;
-    
+
     if (newMonth < 1) {
         newMonth = 12;
         newYear--;
@@ -209,32 +209,104 @@ function changeMonth(direction) {
         newMonth = 1;
         newYear++;
     }
-    
+
     const calendarBody = document.querySelector('.calendar-body');
     if (calendarBody) {
-        calendarBody.style.animation = direction > 0 
+        calendarBody.style.animation = direction > 0
             ? 'slideOutLeft 0.3s ease forwards'
             : 'slideOutRight 0.3s ease forwards';
     }
-    
-    setTimeout(() => {
-        window.location.href = `?year=${newYear}&month=${newMonth}`;
-    }, 300);
+
+    // Load new month via AJAX
+    await loadMonthData(newYear, newMonth, direction > 0 ? 'slideInRight' : 'slideInLeft');
 }
 
-function goToToday() {
+async function goToToday() {
     const today = new Date();
-    
+
     if (calendarView === 'month') {
         const year = today.getFullYear();
         const month = today.getMonth() + 1;
-        window.location.href = `?year=${year}&month=${month}`;
+
+        // If already on current month, just highlight today
+        if (year === window.currentYear && month === window.currentMonth) {
+            const todayEl = document.querySelector('.calendar-day.today');
+            if (todayEl) {
+                todayEl.style.animation = 'pulse 0.5s ease';
+                setTimeout(() => todayEl.style.animation = '', 500);
+            }
+            return;
+        }
+
+        const calendarBody = document.querySelector('.calendar-body');
+        if (calendarBody) {
+            calendarBody.style.animation = 'fadeOut 0.2s ease forwards';
+        }
+
+        await loadMonthData(year, month, 'fadeIn');
     } else if (calendarView === 'week') {
         currentWeekStart = today;
         loadWeekView();
     } else if (calendarView === 'day') {
         currentDayDate = today;
         loadDayView(today);
+    }
+}
+
+async function loadMonthData(year, month, animationIn) {
+    try {
+        // Fetch the calendar page for the new month
+        const response = await fetch(`?year=${year}&month=${month}&ajax=1`);
+        const html = await response.text();
+
+        // Parse the HTML
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        // Extract the calendar body content
+        const newCalendarBody = doc.querySelector('.calendar-body');
+        const newMonthDisplay = doc.querySelector('#currentMonthDisplay');
+        const newEventsScript = doc.querySelector('script[data-events]');
+
+        // Update the calendar body
+        const calendarBody = document.querySelector('.calendar-body');
+        if (calendarBody && newCalendarBody) {
+            calendarBody.innerHTML = newCalendarBody.innerHTML;
+            calendarBody.style.animation = `${animationIn} 0.3s ease forwards`;
+        }
+
+        // Update the month display
+        const monthDisplay = document.getElementById('currentMonthDisplay');
+        if (monthDisplay && newMonthDisplay) {
+            monthDisplay.textContent = newMonthDisplay.textContent;
+        }
+
+        // Update global variables
+        window.currentYear = year;
+        window.currentMonth = month;
+
+        // Update events array from new page
+        const eventsDataEl = doc.getElementById('eventsData');
+        if (eventsDataEl) {
+            try {
+                window.events = JSON.parse(eventsDataEl.textContent);
+            } catch (e) {
+                console.error('Failed to parse events data');
+            }
+        }
+
+        // Re-initialize tilt effects on new elements
+        document.querySelectorAll('.calendar-day[data-tilt]').forEach(card => {
+            if (!card._tiltInitialized) {
+                new TiltEffect(card);
+                card._tiltInitialized = true;
+            }
+        });
+
+    } catch (error) {
+        console.error('Failed to load month:', error);
+        // Fallback to page refresh
+        window.location.href = `?year=${year}&month=${month}`;
     }
 }
 
