@@ -165,13 +165,19 @@ try {
             }
             
             // Prepare notification data
-            $temp = round($weatherData['main']['temp']);
-            $feelsLike = round($weatherData['main']['feels_like']);
+            $temp = isset($weatherData['main']['temp']) ? round($weatherData['main']['temp']) : null;
+            $feelsLike = isset($weatherData['main']['feels_like']) ? round($weatherData['main']['feels_like']) : null;
             $condition = $weatherData['weather'][0]['main'] ?? 'Clear';
             $description = ucfirst($weatherData['weather'][0]['description'] ?? 'clear sky');
-            $location = $weatherData['name'] ?? 'Your location';
+            $locationName = $weatherData['name'] ?? 'Your location';
             $humidity = $weatherData['main']['humidity'] ?? 0;
             $windSpeed = round(($weatherData['wind']['speed'] ?? 0) * 3.6);
+
+            // Skip if no temperature data
+            if ($temp === null) {
+                echo "  ⚠️ No temperature data for user {$user['user_id']}\n";
+                continue;
+            }
 
             // Get weather icon based on condition
             $weatherIcons = [
@@ -194,44 +200,48 @@ try {
             $minTemp = $temp;
             $rainChance = 0;
 
-            if ($forecastData && isset($forecastData['list'])) {
-                $maxTemp = round(max(array_column(array_column($forecastData['list'], 'main'), 'temp_max')));
-                $minTemp = round(min(array_column(array_column($forecastData['list'], 'main'), 'temp_min')));
-
-                // Check for rain
+            if ($forecastData && isset($forecastData['list']) && !empty($forecastData['list'])) {
+                $temps = [];
                 foreach ($forecastData['list'] as $item) {
+                    if (isset($item['main']['temp_max'])) $temps[] = $item['main']['temp_max'];
+                    if (isset($item['main']['temp_min'])) $temps[] = $item['main']['temp_min'];
                     if (isset($item['pop'])) {
                         $rainChance = max($rainChance, round($item['pop'] * 100));
                     }
                 }
+                if (!empty($temps)) {
+                    $maxTemp = round(max($temps));
+                    $minTemp = round(min($temps));
+                }
             }
 
-            // Build CLEAN title (like Google's weather notification)
-            // Format: "☁️ 27° / 14° · Bophelong"
-            $title = "$weatherIcon $maxTemp° / $minTemp° · $location";
+            // ============================================
+            // GOOGLE-STYLE CLEAN NOTIFICATION
+            // ============================================
 
-            // Build CLEAN message body
-            // Line 1: Condition and feels like
-            $message = "$description · Feels $feelsLike°";
+            // Title: Simple like Google "23° in Vanderbijlpark"
+            $title = "{$temp}° in {$locationName}";
 
-            // Line 2: Rain chance if significant, humidity, wind (compact)
-            $stats = [];
-            if ($rainChance > 20) {
-                $stats[] = "☔ $rainChance%";
+            // Body: Clean and informative
+            $messageParts = [];
+            $messageParts[] = "{$description}";
+            $messageParts[] = "H:{$maxTemp}° L:{$minTemp}°";
+            if ($feelsLike !== null && abs($feelsLike - $temp) >= 2) {
+                $messageParts[] = "Feels {$feelsLike}°";
             }
-            $stats[] = "💧 $humidity%";
-            $stats[] = "💨 $windSpeed km/h";
-            $message .= "\n" . implode(" · ", $stats);
 
-            // Line 3: Smart advice (only if relevant)
-            if ($temp > 30) {
-                $message .= "\n🔥 Stay hydrated today!";
-            } elseif ($temp < 10) {
-                $message .= "\n🧥 Bundle up, it's cold!";
-            } elseif ($rainChance > 60) {
-                $message .= "\n☂️ Take an umbrella!";
-            } elseif ($temp >= 10 && $temp <= 15) {
-                $message .= "\n🍂 Chilly morning!";
+            $message = implode(" · ", $messageParts);
+
+            // Second line: rain and wind if notable
+            $extras = [];
+            if ($rainChance >= 20) {
+                $extras[] = "☔ {$rainChance}% rain";
+            }
+            if ($windSpeed >= 20) {
+                $extras[] = "💨 {$windSpeed} km/h";
+            }
+            if (!empty($extras)) {
+                $message .= "\n" . implode(" · ", $extras);
             }
             
             // Create notification
@@ -247,7 +257,7 @@ try {
                 'data' => [
                     'temperature' => $temp,
                     'condition' => $condition,
-                    'location' => $location,
+                    'location' => $locationName,
                     'weather_full' => $weatherData
                 ]
             ];

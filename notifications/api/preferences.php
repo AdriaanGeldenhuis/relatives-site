@@ -240,14 +240,17 @@ try {
                 throw new Exception('Invalid weather response');
             }
 
-            // Prepare notification - same format as cron job
-            $temp = round($weatherData['main']['temp']);
-            $feelsLike = round($weatherData['main']['feels_like']);
+            // Prepare notification - GOOGLE-STYLE FORMAT
+            $temp = isset($weatherData['main']['temp']) ? round($weatherData['main']['temp']) : null;
+            $feelsLike = isset($weatherData['main']['feels_like']) ? round($weatherData['main']['feels_like']) : null;
             $condition = $weatherData['weather'][0]['main'] ?? 'Clear';
             $description = ucfirst($weatherData['weather'][0]['description'] ?? 'clear sky');
             $locationName = $weatherData['name'] ?? 'Your location';
-            $humidity = $weatherData['main']['humidity'] ?? 0;
             $windSpeed = round(($weatherData['wind']['speed'] ?? 0) * 3.6);
+
+            if ($temp === null) {
+                throw new Exception('No temperature data available');
+            }
 
             // Get weather icon based on condition
             $weatherIcons = [
@@ -272,36 +275,48 @@ try {
             $minTemp = $temp;
             $rainChance = 0;
 
-            if ($forecastData && isset($forecastData['list'])) {
-                $maxTemp = round(max(array_column(array_column($forecastData['list'], 'main'), 'temp_max')));
-                $minTemp = round(min(array_column(array_column($forecastData['list'], 'main'), 'temp_min')));
+            if ($forecastData && isset($forecastData['list']) && !empty($forecastData['list'])) {
+                $temps = [];
                 foreach ($forecastData['list'] as $item) {
+                    if (isset($item['main']['temp_max'])) $temps[] = $item['main']['temp_max'];
+                    if (isset($item['main']['temp_min'])) $temps[] = $item['main']['temp_min'];
                     if (isset($item['pop'])) {
                         $rainChance = max($rainChance, round($item['pop'] * 100));
                     }
                 }
+                if (!empty($temps)) {
+                    $maxTemp = round(max($temps));
+                    $minTemp = round(min($temps));
+                }
             }
 
-            // Build CLEAN title (like Google's weather notification)
-            $title = "$weatherIcon $maxTemp° / $minTemp° · $locationName";
+            // ============================================
+            // GOOGLE-STYLE CLEAN NOTIFICATION
+            // ============================================
 
-            // Build CLEAN message body
-            $message = "$description · Feels $feelsLike°";
-            $stats = [];
-            if ($rainChance > 20) {
-                $stats[] = "☔ $rainChance%";
+            // Title: Simple like Google "23° in Vanderbijlpark"
+            $title = "{$temp}° in {$locationName}";
+
+            // Body: Clean and informative
+            $messageParts = [];
+            $messageParts[] = "{$description}";
+            $messageParts[] = "H:{$maxTemp}° L:{$minTemp}°";
+            if ($feelsLike !== null && abs($feelsLike - $temp) >= 2) {
+                $messageParts[] = "Feels {$feelsLike}°";
             }
-            $stats[] = "💧 $humidity%";
-            $stats[] = "💨 $windSpeed km/h";
-            $message .= "\n" . implode(" · ", $stats);
 
-            // Smart advice
-            if ($temp > 30) {
-                $message .= "\n🔥 Stay hydrated today!";
-            } elseif ($temp < 10) {
-                $message .= "\n🧥 Bundle up, it's cold!";
-            } elseif ($rainChance > 60) {
-                $message .= "\n☂️ Take an umbrella!";
+            $message = implode(" · ", $messageParts);
+
+            // Second line: rain and wind if notable
+            $extras = [];
+            if ($rainChance >= 20) {
+                $extras[] = "☔ {$rainChance}% rain";
+            }
+            if ($windSpeed >= 20) {
+                $extras[] = "💨 {$windSpeed} km/h";
+            }
+            if (!empty($extras)) {
+                $message .= "\n" . implode(" · ", $extras);
             }
 
             $notifManager = NotificationManager::getInstance($db);
