@@ -132,16 +132,17 @@ public function login(string $email, string $password): array {
             
             $stmt = $this->db->prepare("
                 INSERT INTO users (
-                    family_id, 
-                    role, 
-                    email, 
-                    password_hash, 
-                    full_name, 
+                    family_id,
+                    role,
+                    email,
+                    password_hash,
+                    full_name,
                     avatar_color,
                     location_sharing,
+                    location_tracking_mode,
                     status,
                     created_at
-                ) VALUES (?, 'owner', ?, ?, ?, ?, 1, 'active', NOW())
+                ) VALUES (?, 'owner', ?, ?, ?, ?, 1, 'always', 'active', NOW())
             ");
             $stmt->execute([
                 $familyId,
@@ -235,16 +236,17 @@ public function login(string $email, string $password): array {
         
         $stmt = $this->db->prepare("
             INSERT INTO users (
-                family_id, 
-                role, 
-                email, 
-                password_hash, 
-                full_name, 
+                family_id,
+                role,
+                email,
+                password_hash,
+                full_name,
                 avatar_color,
                 location_sharing,
+                location_tracking_mode,
                 status,
                 created_at
-            ) VALUES (?, 'member', ?, ?, ?, ?, 1, 'active', NOW())
+            ) VALUES (?, 'member', ?, ?, ?, ?, 1, 'always', 'active', NOW())
         ");
         $stmt->execute([
             $family['id'],
@@ -263,7 +265,17 @@ public function login(string $email, string $password): array {
                 error_log("Failed to send welcome email: " . $e->getMessage());
             }
         }
-        
+
+        // Notify family members about new member
+        try {
+            require_once __DIR__ . '/NotificationManager.php';
+            require_once __DIR__ . '/NotificationTriggers.php';
+            $triggers = new NotificationTriggers($this->db);
+            $triggers->onFamilyMemberJoined((int)$family['id'], $userId, $fullName);
+        } catch (Exception $e) {
+            error_log("Failed to send family member joined notification: " . $e->getMessage());
+        }
+
         return [
             'success' => true,
             'user_id' => $userId,

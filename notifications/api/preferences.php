@@ -127,40 +127,158 @@ try {
             $time = $_POST['time'] ?? '07:00:00';
             $voiceEnabled = isset($_POST['voice_enabled']) ? (int)$_POST['voice_enabled'] : 1;
             $includeForecast = isset($_POST['include_forecast']) ? (int)$_POST['include_forecast'] : 1;
-            
-            // Validate time format
-            if (!preg_match('/^\d{2}:\d{2}:\d{2}$/', $time)) {
+
+            // Validate time format (accept both HH:MM and HH:MM:SS)
+            if (!preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $time)) {
                 throw new Exception('Invalid time format');
             }
-            
-            // Check if exists
-            $stmt = $db->prepare("SELECT id FROM weather_notification_schedule WHERE user_id = ?");
+            // Ensure time has seconds
+            if (strlen($time) === 5) {
+                $time .= ':00';
+            }
+
+            // Check if exists and get formatted time for comparison
+            $stmt = $db->prepare("SELECT id, TIME_FORMAT(notification_time, '%H:%i:%s') as formatted_time FROM weather_notification_schedule WHERE user_id = ?");
             $stmt->execute([$userId]);
-            $exists = $stmt->fetch();
-            
+            $exists = $stmt->fetch(PDO::FETCH_ASSOC);
+
             if ($exists) {
+                // Check if time changed - always reset last_sent on time change
+                $timeChanged = ($exists['formatted_time'] !== $time);
+
+                // Basic update without last_sent
                 $stmt = $db->prepare("
-                    UPDATE weather_notification_schedule 
-                    SET enabled = ?, 
-                        notification_time = ?, 
-                        voice_enabled = ?, 
+                    UPDATE weather_notification_schedule
+                    SET enabled = ?,
+                        notification_time = ?,
+                        voice_enabled = ?,
                         include_forecast = ?,
                         updated_at = NOW()
                     WHERE user_id = ?
                 ");
                 $stmt->execute([$enabled, $time, $voiceEnabled, $includeForecast, $userId]);
+
+                // Reset last_sent separately if time changed (handles missing column gracefully)
+                if ($timeChanged) {
+                    try {
+                        $stmt = $db->prepare("UPDATE weather_notification_schedule SET last_sent = NULL WHERE user_id = ?");
+                        $stmt->execute([$userId]);
+                    } catch (PDOException $e) {
+                        // Column might not exist - log but don't fail
+                        error_log("Could not reset last_sent: " . $e->getMessage());
+                    }
+                }
             } else {
                 $stmt = $db->prepare("
-                    INSERT INTO weather_notification_schedule 
+                    INSERT INTO weather_notification_schedule
                     (user_id, enabled, notification_time, voice_enabled, include_forecast)
                     VALUES (?, ?, ?, ?, ?)
                 ");
                 $stmt->execute([$userId, $enabled, $time, $voiceEnabled, $includeForecast]);
             }
-            
+
             echo json_encode(['success' => true]);
             break;
-            
+
+        case 'test_weather':
+            // Send immediate weather notification for testing
+            require_once __DIR__ . '/../../core/NotificationManager.php';
+
+            // Get user's weather schedule settings
+            $stmt = $db->prepare("SELECT * FROM weather_notification_schedule WHERE user_id = ?");
+            $stmt->execute([$userId]);
+            $schedule = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            // Get user's location
+            $stmt = $db->prepare("
+                SELECT latitude, longitude
+                FROM tracking_locations
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+                LIMIT 1
+            ");
+            $stmt->execute([$userId]);
+            $location = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            // Default to Johannesburg if no location
+            $lat = $location['latitude'] ?? -26.2041;
+            $lon = $location['longitude'] ?? 28.0473;
+
+            // Fetch weather data using cURL for better reliability
+            $apiKey = '563504b6b46d0e6bcf9a49e1cb6bc4f3';
+            $weatherUrl = "https://api.openweathermap.org/data/2.5/weather?lat={$lat}&lon={$lon}&appid={$apiKey}&units=metric";
+
+            $weatherResponse = false;
+            if (function_exists('curl_init')) {
+                $ch = curl_init($weatherUrl);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                $weatherResponse = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $curlError = curl_error($ch);
+                curl_close($ch);
+
+                if ($weatherResponse === false || $httpCode !== 200) {
+                    error_log("Weather API error: HTTP $httpCode, cURL error: $curlError");
+                    $weatherResponse = false;
+                }
+            }
+
+            // Fallback to file_get_contents
+            if ($weatherResponse === false) {
+                $context = stream_context_create(['http' => ['timeout' => 10]]);
+                $weatherResponse = @file_get_contents($weatherUrl, false, $context);
+            }
+
+            if ($weatherResponse === false) {
+                throw new Exception('Failed to fetch weather data - check server connectivity');
+            }
+
+            $weatherData = json_decode($weatherResponse, true);
+            if (!isset($weatherData['main'])) {
+                throw new Exception('Invalid weather response');
+            }
+
+            // Prepare notification
+            $temp = round($weatherData['main']['temp']);
+            $feelsLike = round($weatherData['main']['feels_like']);
+            $description = ucfirst($weatherData['weather'][0]['description'] ?? 'clear sky');
+            $locationName = $weatherData['name'] ?? 'Your location';
+            $humidity = $weatherData['main']['humidity'] ?? 0;
+            $windSpeed = round(($weatherData['wind']['speed'] ?? 0) * 3.6);
+
+            $message = "Test Weather Update\n\n";
+            $message .= "📍 $locationName\n";
+            $message .= "🌡️ $temp°C (feels like $feelsLike°C)\n";
+            $message .= "☁️ $description\n";
+            $message .= "💧 Humidity: $humidity%\n";
+            $message .= "💨 Wind: $windSpeed km/h";
+
+            $notifManager = NotificationManager::getInstance($db);
+            $notifId = $notifManager->create([
+                'user_id' => $userId,
+                'type' => NotificationManager::TYPE_WEATHER,
+                'title' => "Weather Test - $locationName",
+                'message' => $message,
+                'action_url' => '/notifications/',
+                'priority' => NotificationManager::PRIORITY_NORMAL,
+                'icon' => '🌤️',
+                'vibrate' => 1,
+                'data' => [
+                    'test' => true,
+                    'temperature' => $temp,
+                    'condition' => $weatherData['weather'][0]['main'] ?? 'Clear'
+                ]
+            ]);
+
+            echo json_encode([
+                'success' => $notifId ? true : false,
+                'notification_id' => $notifId,
+                'message' => $notifId ? 'Weather notification sent!' : 'Failed to send notification'
+            ]);
+            break;
+
         case 'test':
             // Send test notification with push via NotificationManager
             require_once __DIR__ . '/../../core/NotificationManager.php';

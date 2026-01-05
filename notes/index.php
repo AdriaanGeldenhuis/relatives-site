@@ -12,6 +12,8 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once __DIR__ . '/../core/bootstrap.php';
+require_once __DIR__ . '/../core/NotificationManager.php';
+require_once __DIR__ . '/../core/NotificationTriggers.php';
 
 $auth = new Auth($db);
 $user = $auth->getCurrentUser();
@@ -53,22 +55,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 
                 if ($type === 'voice' && isset($_FILES['audio']) && $_FILES['audio']['error'] === UPLOAD_ERR_OK) {
                     $uploadDir = __DIR__ . '/../uploads/voice/';
-                    
+
                     if (!is_dir($uploadDir)) {
                         mkdir($uploadDir, 0755, true);
                     }
-                    
+
                     $filename = 'voice_' . time() . '_' . uniqid() . '.webm';
                     $filepath = $uploadDir . $filename;
-                    
+
                     if (move_uploaded_file($_FILES['audio']['tmp_name'], $filepath)) {
                         $audioPath = '/uploads/voice/' . $filename;
-                        
+
                         $stmt = $db->prepare("UPDATE notes SET audio_path = ? WHERE id = ?");
                         $stmt->execute([$audioPath, $noteId]);
                     }
                 }
-                
+
+                // Send notification to family members
+                try {
+                    $triggers = new NotificationTriggers($db);
+                    $triggers->onNoteCreated($noteId, $user['id'], $user['family_id'], $title, $type);
+                } catch (Exception $e) {
+                    error_log('Note notification error: ' . $e->getMessage());
+                }
+
                 echo json_encode(['success' => true, 'note_id' => $noteId]);
                 exit;
             

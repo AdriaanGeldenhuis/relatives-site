@@ -324,6 +324,9 @@ function renderPreferences(preferences, weatherSchedule) {
             <button onclick="savePreferences()" class="btn btn-primary">
                 Save Preferences
             </button>
+            <button onclick="testWeatherNotification()" class="btn btn-secondary" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                🌤️ Test Weather
+            </button>
             <button onclick="testNotification()" class="btn btn-secondary">
                 Test Notification
             </button>
@@ -434,6 +437,37 @@ async function testNotification() {
     } catch (error) {
         console.error('Test error:', error);
         showToast('Failed to send test', 'error');
+    }
+}
+
+async function testWeatherNotification() {
+    try {
+        showToast('Fetching weather data...', 'info');
+
+        const formData = new URLSearchParams();
+        formData.append('action', 'test_weather');
+
+        const response = await fetch('/notifications/api/preferences.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to send weather notification');
+        }
+
+        showToast('Weather notification sent! Check your notifications.', 'success');
+
+        setTimeout(() => window.location.reload(), 2000);
+
+    } catch (error) {
+        console.error('Weather test error:', error);
+        showToast('Failed: ' + error.message, 'error');
     }
 }
 
