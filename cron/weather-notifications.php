@@ -154,11 +154,22 @@ try {
                 continue;
             }
             
-            // Get forecast if enabled
+            // Get forecast if enabled (use cURL for reliability)
             $forecastData = null;
             if ($user['include_forecast']) {
                 $forecastUrl = "https://api.openweathermap.org/data/2.5/forecast?lat={$lat}&lon={$lon}&appid={$apiKey}&units=metric&cnt=8";
-                $forecastResponse = @file_get_contents($forecastUrl);
+                $forecastResponse = false;
+                if (function_exists('curl_init')) {
+                    $ch = curl_init($forecastUrl);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                    $forecastResponse = curl_exec($ch);
+                    curl_close($ch);
+                }
+                if (!$forecastResponse) {
+                    $forecastResponse = @file_get_contents($forecastUrl);
+                }
                 if ($forecastResponse) {
                     $forecastData = json_decode($forecastResponse, true);
                 }
