@@ -305,18 +305,33 @@ try {
             // BEAUTIFUL WEATHER NOTIFICATION
             // ============================================
 
-            // Title: Icon + temp + location
-            $title = "{$weatherIcon} {$temp}° in {$locationName}";
+            // Determine greeting based on time
+            $hour = (int)date('H');
+            if ($hour >= 5 && $hour < 12) {
+                $greeting = "Good morning";
+            } elseif ($hour >= 12 && $hour < 17) {
+                $greeting = "Good afternoon";
+            } elseif ($hour >= 17 && $hour < 21) {
+                $greeting = "Good evening";
+            } else {
+                $greeting = "Weather update";
+            }
+
+            // Title: Greeting + location
+            $title = "{$weatherIcon} {$greeting} · {$locationName}";
 
             // Body: Multi-line beautiful format
             $lines = [];
 
-            // Line 1: Condition + Feels like
-            $line1 = $description;
+            // Line 1: Current temp big and bold
+            $lines[] = "🌡️ Currently {$temp}°";
+
+            // Line 2: Condition + Feels like
+            $line2 = $description;
             if ($feelsLike !== null && $feelsLike != $temp) {
-                $line1 .= " · Feels {$feelsLike}°";
+                $line2 .= " · Feels {$feelsLike}°";
             }
-            $lines[] = $line1;
+            $lines[] = $line2;
 
             // Line 2: High/Low temps
             if ($maxTemp != $minTemp) {
