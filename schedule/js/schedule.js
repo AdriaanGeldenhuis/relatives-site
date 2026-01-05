@@ -1197,8 +1197,6 @@ async function loadScheduleData(date, animationIn) {
 
         // Extract the notes section content
         const newNotesSection = doc.querySelector('.notes-section');
-        const newDateDisplay = doc.querySelector('.selected-date');
-        const newDayName = doc.querySelector('.schedule-title');
 
         // Update the notes section
         const notesSection = document.querySelector('.notes-section');
@@ -1207,16 +1205,30 @@ async function loadScheduleData(date, animationIn) {
             notesSection.style.animation = `${animationIn} 0.3s ease forwards`;
         }
 
-        // Update date display
-        const dateDisplay = document.querySelector('.selected-date');
-        if (dateDisplay && newDateDisplay) {
-            dateDisplay.textContent = newDateDisplay.textContent;
+        // Update date display elements
+        const newDateValue = doc.querySelector('.date-value');
+        const newDateDay = doc.querySelector('.date-day');
+        const newDateEvents = doc.querySelector('.date-events');
+        const newDateDisplay = doc.querySelector('.date-display');
+
+        const dateValue = document.querySelector('.date-value');
+        const dateDay = document.querySelector('.date-day');
+        const dateEvents = document.querySelector('.date-events');
+        const dateDisplay = document.querySelector('.date-display');
+
+        if (dateValue && newDateValue) {
+            dateValue.textContent = newDateValue.textContent;
+        }
+        if (dateDay && newDateDay) {
+            dateDay.textContent = newDateDay.textContent;
+        }
+        if (dateEvents && newDateEvents) {
+            dateEvents.textContent = newDateEvents.textContent;
         }
 
-        // Update day name
-        const dayName = document.querySelector('.schedule-title');
-        if (dayName && newDayName) {
-            dayName.textContent = newDayName.textContent;
+        // Update today class
+        if (dateDisplay && newDateDisplay) {
+            dateDisplay.className = newDateDisplay.className;
         }
 
         // Update the date picker input
