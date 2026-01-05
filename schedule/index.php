@@ -537,13 +537,33 @@ require_once __DIR__ . '/../shared/components/header.php';
                 <div class="form-group">
                     <label>Event Type</label>
                     <select id="eventType" class="form-control">
-                        <option value="work">💼 Work</option>
-                        <option value="study">📚 Study</option>
-                        <option value="church">⛪ Church</option>
-                        <option value="event">📅 Event</option>
-                        <option value="focus">🎯 Focus</option>
-                        <option value="break">☕ Break</option>
-                        <option value="todo">✅ To-Do</option>
+                        <optgroup label="⏰ Schedule Tasks">
+                            <option value="work">💼 Work</option>
+                            <option value="study">📚 Study</option>
+                            <option value="church">⛪ Church</option>
+                            <option value="event">📅 Event</option>
+                            <option value="focus">🎯 Focus</option>
+                            <option value="break">☕ Break</option>
+                            <option value="todo">✅ To-Do</option>
+                        </optgroup>
+                        <optgroup label="📅 Calendar Events">
+                            <option value="birthday">🎂 Birthday</option>
+                            <option value="anniversary">💍 Anniversary</option>
+                            <option value="holiday">🎉 Holiday</option>
+                            <option value="family_event">👨‍👩‍👧‍👦 Family Event</option>
+                            <option value="date">❤️ Special Date</option>
+                            <option value="reminder">🔔 Reminder</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Priority</label>
+                    <select id="eventPriority" class="form-control">
+                        <option value="low">🟢 Low</option>
+                        <option value="medium" selected>🟡 Medium</option>
+                        <option value="high">🔴 High</option>
+                        <option value="urgent">🚨 Urgent</option>
                     </select>
                 </div>
 
@@ -686,13 +706,33 @@ require_once __DIR__ . '/../shared/components/header.php';
                 <div class="form-group">
                     <label>Type</label>
                     <select id="editEventType" class="form-control">
-                        <option value="work">💼 Work</option>
-                        <option value="study">📚 Study</option>
-                        <option value="church">⛪ Church</option>
-                        <option value="event">📅 Event</option>
-                        <option value="focus">🎯 Focus</option>
-                        <option value="break">☕ Break</option>
-                        <option value="todo">✅ To-Do</option>
+                        <optgroup label="⏰ Schedule Tasks">
+                            <option value="work">💼 Work</option>
+                            <option value="study">📚 Study</option>
+                            <option value="church">⛪ Church</option>
+                            <option value="event">📅 Event</option>
+                            <option value="focus">🎯 Focus</option>
+                            <option value="break">☕ Break</option>
+                            <option value="todo">✅ To-Do</option>
+                        </optgroup>
+                        <optgroup label="📅 Calendar Events">
+                            <option value="birthday">🎂 Birthday</option>
+                            <option value="anniversary">💍 Anniversary</option>
+                            <option value="holiday">🎉 Holiday</option>
+                            <option value="family_event">👨‍👩‍👧‍👦 Family Event</option>
+                            <option value="date">❤️ Special Date</option>
+                            <option value="reminder">🔔 Reminder</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Priority</label>
+                    <select id="editEventPriority" class="form-control">
+                        <option value="low">🟢 Low</option>
+                        <option value="medium">🟡 Medium</option>
+                        <option value="high">🔴 High</option>
+                        <option value="urgent">🚨 Urgent</option>
                     </select>
                 </div>
 

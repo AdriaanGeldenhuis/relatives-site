@@ -1903,3 +1903,327 @@ textarea.form-control {
         border: 1px solid #ccc;
     }
 }
+/* ============================================
+   DURATION PRESETS
+   ============================================ */
+
+.duration-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.preset-btn {
+    background: var(--glass-light);
+    border: 1px solid var(--glass-border);
+    color: white;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.preset-btn:hover {
+    background: var(--glass-medium);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.preset-btn:active {
+    transform: translateY(0);
+}
+
+/* ============================================
+   PRIORITY BADGES
+   ============================================ */
+
+.priority-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.priority-low {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+}
+
+.priority-medium {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+}
+
+.priority-high {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.priority-urgent {
+    background: rgba(220, 38, 38, 0.3);
+    color: #dc2626;
+    animation: urgentPulse 1.5s infinite;
+}
+
+@keyframes urgentPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* ============================================
+   LEGEND SECTION TITLES
+   ============================================ */
+
+.legend-section-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================
+   ENHANCED FORM STYLES
+   ============================================ */
+
+optgroup {
+    background: #1a1a2e;
+    color: rgba(255, 255, 255, 0.7);
+    font-style: normal;
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+optgroup option {
+    color: white;
+    font-weight: 400;
+    padding: 8px;
+}
+
+select option {
+    background: #16213e;
+    color: white;
+}
+
+/* ============================================
+   SUBTASK CHECKLIST STYLES
+   ============================================ */
+
+.subtask-list {
+    margin-top: 12px;
+}
+
+.subtask-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--glass-light);
+    border-radius: var(--radius-sm);
+    margin-bottom: 6px;
+    transition: all var(--transition-fast);
+}
+
+.subtask-item:hover {
+    background: var(--glass-medium);
+}
+
+.subtask-item.completed {
+    opacity: 0.6;
+}
+
+.subtask-item.completed .subtask-title {
+    text-decoration: line-through;
+}
+
+.subtask-checkbox {
+    width: 18px;
+    height: 18px;
+    accent-color: #667eea;
+    cursor: pointer;
+}
+
+.subtask-title {
+    flex: 1;
+    font-size: 0.9rem;
+}
+
+.subtask-delete {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    padding: 4px;
+    transition: color var(--transition-fast);
+}
+
+.subtask-delete:hover {
+    color: #ef4444;
+}
+
+.add-subtask-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px;
+    background: none;
+    border: 2px dashed rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-sm);
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-size: 0.85rem;
+}
+
+.add-subtask-btn:hover {
+    border-color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.8);
+    background: var(--glass-light);
+}
+
+/* ============================================
+   CONFLICT WARNING
+   ============================================ */
+
+.conflict-warning {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: var(--radius-sm);
+    color: #fca5a5;
+    margin-bottom: 16px;
+    animation: slideInUp 0.3s ease;
+}
+
+.conflict-warning-icon {
+    font-size: 1.2rem;
+}
+
+.conflict-warning-text {
+    flex: 1;
+    font-size: 0.85rem;
+}
+
+.conflict-warning-btn {
+    background: rgba(239, 68, 68, 0.3);
+    border: none;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: background var(--transition-fast);
+}
+
+.conflict-warning-btn:hover {
+    background: rgba(239, 68, 68, 0.5);
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ============================================
+   SNOOZE BUTTON STYLES
+   ============================================ */
+
+.snooze-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.snooze-btn {
+    background: var(--glass-light);
+    border: 1px solid var(--glass-border);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.snooze-btn:hover {
+    background: #667eea;
+    border-color: #667eea;
+}
+
+/* ============================================
+   NATURAL LANGUAGE INPUT STYLES
+   ============================================ */
+
+.nl-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #1a1a2e;
+    border: 1px solid var(--glass-border);
+    border-top: none;
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 100;
+    display: none;
+}
+
+.nl-suggestions.active {
+    display: block;
+}
+
+.nl-suggestion-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.nl-suggestion-item:hover {
+    background: var(--glass-medium);
+}
+
+.nl-suggestion-icon {
+    font-size: 1.1rem;
+}
+
+.nl-suggestion-text {
+    font-size: 0.9rem;
+}
+
+.nl-parsed-preview {
+    margin-top: 8px;
+    padding: 10px;
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.nl-parsed-preview strong {
+    color: #667eea;
+}

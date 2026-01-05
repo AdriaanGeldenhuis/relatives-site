@@ -692,15 +692,74 @@ function showDayEvents(dateStr) {
 
 function getEventTypeLabel(kind) {
     const labels = {
+        // Calendar types
         birthday: '🎂 Birthday',
         anniversary: '💍 Anniversary',
         holiday: '🎉 Holiday',
         family_event: '👨‍👩‍👧‍👦 Family',
         date: '💕 Date',
         reminder: '🔔 Reminder',
-        event: '📅 Event'
+        event: '📅 Event',
+        // Schedule types
+        work: '💼 Work',
+        study: '📚 Study',
+        church: '⛪ Church',
+        focus: '🎯 Focus',
+        break: '☕ Break',
+        todo: '✅ To-Do'
     };
     return labels[kind] || '📅 Event';
+}
+
+function getPriorityLabel(priority) {
+    const labels = {
+        low: '🟢 Low',
+        medium: '🟡 Medium',
+        high: '🔴 High',
+        urgent: '🚨 Urgent'
+    };
+    return labels[priority] || '🟡 Medium';
+}
+
+// Set duration from preset
+function setDurationPreset(minutes) {
+    const startTime = document.getElementById('eventStartTime').value;
+    if (startTime) {
+        const [hours, mins] = startTime.split(':').map(Number);
+        const startDate = new Date();
+        startDate.setHours(hours, mins, 0, 0);
+
+        const endDate = new Date(startDate.getTime() + minutes * 60 * 1000);
+        const endHours = String(endDate.getHours()).padStart(2, '0');
+        const endMins = String(endDate.getMinutes()).padStart(2, '0');
+
+        document.getElementById('eventEndTime').value = `${endHours}:${endMins}`;
+
+        // Visual feedback
+        showToast(`Duration set to ${minutes} minutes`, 'success');
+    } else {
+        showToast('Please set a start time first', 'error');
+    }
+}
+
+// Set duration from preset (edit modal)
+function setEditDurationPreset(minutes) {
+    const startTime = document.getElementById('editEventStartTime').value;
+    if (startTime) {
+        const [hours, mins] = startTime.split(':').map(Number);
+        const startDate = new Date();
+        startDate.setHours(hours, mins, 0, 0);
+
+        const endDate = new Date(startDate.getTime() + minutes * 60 * 1000);
+        const endHours = String(endDate.getHours()).padStart(2, '0');
+        const endMins = String(endDate.getMinutes()).padStart(2, '0');
+
+        document.getElementById('editEventEndTime').value = `${endHours}:${endMins}`;
+
+        showToast(`Duration set to ${minutes} minutes`, 'success');
+    } else {
+        showToast('Please set a start time first', 'error');
+    }
 }
 
 function addEventForDay() {
@@ -727,13 +786,40 @@ async function confirmDeleteFromDay(eventId) {
 // EVENT TYPE COLORS AND SETTINGS
 // ============================================
 const eventTypeSettings = {
+    // Calendar types
     birthday: { color: '#e74c3c', allDay: true, yearlyRepeat: true, hideTime: true },
     anniversary: { color: '#9b59b6', allDay: true, yearlyRepeat: true, hideTime: true },
     holiday: { color: '#f39c12', allDay: true, yearlyRepeat: false, hideTime: false },
     family_event: { color: '#2ecc71', allDay: false, yearlyRepeat: false, hideTime: false },
     date: { color: '#e91e63', allDay: false, yearlyRepeat: false, hideTime: false },
     reminder: { color: '#3498db', allDay: false, yearlyRepeat: false, hideTime: false },
-    event: { color: '#3498db', allDay: false, yearlyRepeat: false, hideTime: false }
+    event: { color: '#3498db', allDay: false, yearlyRepeat: false, hideTime: false },
+    // Schedule types
+    work: { color: '#43e97b', allDay: false, yearlyRepeat: false, hideTime: false },
+    study: { color: '#667eea', allDay: false, yearlyRepeat: false, hideTime: false },
+    church: { color: '#9b59b6', allDay: false, yearlyRepeat: false, hideTime: false },
+    focus: { color: '#4facfe', allDay: false, yearlyRepeat: false, hideTime: false },
+    break: { color: '#feca57', allDay: false, yearlyRepeat: false, hideTime: false },
+    todo: { color: '#f093fb', allDay: false, yearlyRepeat: false, hideTime: false }
+};
+
+// Duration presets for quick selection
+const durationPresets = [
+    { label: '15m', minutes: 15, icon: '⚡' },
+    { label: '25m', minutes: 25, icon: '🍅' },
+    { label: '30m', minutes: 30, icon: '⏱️' },
+    { label: '45m', minutes: 45, icon: '⏰' },
+    { label: '1h', minutes: 60, icon: '🕐' },
+    { label: '90m', minutes: 90, icon: '📚' },
+    { label: '2h', minutes: 120, icon: '🎯' }
+];
+
+// Priority colors
+const priorityColors = {
+    low: '#10b981',
+    medium: '#f59e0b',
+    high: '#ef4444',
+    urgent: '#dc2626'
 };
 
 function onEventTypeChange(selectElement, isEdit = false) {

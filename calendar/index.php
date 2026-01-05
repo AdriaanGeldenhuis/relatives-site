@@ -75,8 +75,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     throw new Exception('Start date/time is required');
                 }
 
-                // Validate kind - Calendar focuses on dates/occasions
-                $validKinds = ['birthday', 'anniversary', 'holiday', 'family_event', 'date', 'reminder', 'event', 'other'];
+                // Validate kind - All unified event types
+                $validKinds = [
+                    // Calendar types
+                    'birthday', 'anniversary', 'holiday', 'family_event', 'date', 'reminder', 'event',
+                    // Schedule types
+                    'work', 'study', 'church', 'focus', 'break', 'todo',
+                    // General
+                    'other'
+                ];
                 if (!in_array($kind, $validKinds)) {
                     $kind = 'event';
                 }
@@ -716,6 +723,7 @@ require_once __DIR__ . '/../shared/components/header.php';
                         <h3><span class="sidebar-icon">🎨</span> Event Types</h3>
                     </div>
                     <div class="legend-list">
+                        <div class="legend-section-title">Calendar</div>
                         <div class="legend-item">
                             <div class="legend-color" style="background: #e74c3c;"></div>
                             <div class="legend-label">🎂 Birthday</div>
@@ -739,6 +747,27 @@ require_once __DIR__ . '/../shared/components/header.php';
                         <div class="legend-item">
                             <div class="legend-color" style="background: #3498db;"></div>
                             <div class="legend-label">📅 Event</div>
+                        </div>
+                        <div class="legend-section-title" style="margin-top: 10px;">Schedule</div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #43e97b;"></div>
+                            <div class="legend-label">💼 Work</div>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #667eea;"></div>
+                            <div class="legend-label">📚 Study</div>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #4facfe;"></div>
+                            <div class="legend-label">🎯 Focus</div>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #feca57;"></div>
+                            <div class="legend-label">☕ Break</div>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #f093fb;"></div>
+                            <div class="legend-label">✅ To-Do</div>
                         </div>
                     </div>
                 </div>
@@ -779,13 +808,33 @@ require_once __DIR__ . '/../shared/components/header.php';
                 <div class="form-group">
                     <label>Event Type</label>
                     <select id="eventKind" class="form-control" onchange="onEventTypeChange(this, false)">
-                        <option value="birthday">🎂 Birthday</option>
-                        <option value="anniversary">💍 Anniversary</option>
-                        <option value="holiday">🎉 Holiday</option>
-                        <option value="family_event">👨‍👩‍👧‍👦 Family Event</option>
-                        <option value="date">❤️ Special Date</option>
-                        <option value="reminder">🔔 Reminder</option>
-                        <option value="event" selected>📅 General Event</option>
+                        <optgroup label="📅 Calendar Events">
+                            <option value="birthday">🎂 Birthday</option>
+                            <option value="anniversary">💍 Anniversary</option>
+                            <option value="holiday">🎉 Holiday</option>
+                            <option value="family_event">👨‍👩‍👧‍👦 Family Event</option>
+                            <option value="date">❤️ Special Date</option>
+                            <option value="reminder">🔔 Reminder</option>
+                            <option value="event" selected>📅 General Event</option>
+                        </optgroup>
+                        <optgroup label="⏰ Schedule Tasks">
+                            <option value="work">💼 Work</option>
+                            <option value="study">📚 Study</option>
+                            <option value="church">⛪ Church</option>
+                            <option value="focus">🎯 Focus</option>
+                            <option value="break">☕ Break</option>
+                            <option value="todo">✅ To-Do</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Priority</label>
+                    <select id="eventPriority" class="form-control">
+                        <option value="low">🟢 Low</option>
+                        <option value="medium" selected>🟡 Medium</option>
+                        <option value="high">🔴 High</option>
+                        <option value="urgent">🚨 Urgent</option>
                     </select>
                 </div>
 
@@ -813,6 +862,18 @@ require_once __DIR__ . '/../shared/components/header.php';
                         <div class="form-group" style="flex: 1;">
                             <label>End Time</label>
                             <input type="time" id="eventEndTime" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Quick Duration</label>
+                        <div class="duration-presets">
+                            <button type="button" onclick="setDurationPreset(15)" class="preset-btn">⚡ 15m</button>
+                            <button type="button" onclick="setDurationPreset(25)" class="preset-btn">🍅 25m</button>
+                            <button type="button" onclick="setDurationPreset(30)" class="preset-btn">⏱️ 30m</button>
+                            <button type="button" onclick="setDurationPreset(60)" class="preset-btn">🕐 1h</button>
+                            <button type="button" onclick="setDurationPreset(90)" class="preset-btn">📚 90m</button>
+                            <button type="button" onclick="setDurationPreset(120)" class="preset-btn">🎯 2h</button>
                         </div>
                     </div>
 
@@ -921,13 +982,33 @@ require_once __DIR__ . '/../shared/components/header.php';
                 <div class="form-group">
                     <label>Event Type</label>
                     <select id="editEventKind" class="form-control" onchange="onEventTypeChange(this, true)">
-                        <option value="birthday">🎂 Birthday</option>
-                        <option value="anniversary">💍 Anniversary</option>
-                        <option value="holiday">🎉 Holiday</option>
-                        <option value="family_event">👨‍👩‍👧‍👦 Family Event</option>
-                        <option value="date">❤️ Special Date</option>
-                        <option value="reminder">🔔 Reminder</option>
-                        <option value="event">📅 General Event</option>
+                        <optgroup label="📅 Calendar Events">
+                            <option value="birthday">🎂 Birthday</option>
+                            <option value="anniversary">💍 Anniversary</option>
+                            <option value="holiday">🎉 Holiday</option>
+                            <option value="family_event">👨‍👩‍👧‍👦 Family Event</option>
+                            <option value="date">❤️ Special Date</option>
+                            <option value="reminder">🔔 Reminder</option>
+                            <option value="event">📅 General Event</option>
+                        </optgroup>
+                        <optgroup label="⏰ Schedule Tasks">
+                            <option value="work">💼 Work</option>
+                            <option value="study">📚 Study</option>
+                            <option value="church">⛪ Church</option>
+                            <option value="focus">🎯 Focus</option>
+                            <option value="break">☕ Break</option>
+                            <option value="todo">✅ To-Do</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Priority</label>
+                    <select id="editEventPriority" class="form-control">
+                        <option value="low">🟢 Low</option>
+                        <option value="medium">🟡 Medium</option>
+                        <option value="high">🔴 High</option>
+                        <option value="urgent">🚨 Urgent</option>
                     </select>
                 </div>
 
