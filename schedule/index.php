@@ -83,13 +83,15 @@ foreach ($events as $event) {
     $eventsByType[$type][] = $event;
 }
 
-// Type metadata
+// Type metadata - Schedule focuses on activities/tasks
 $types = [
-    'study' => ['icon' => '📚', 'name' => 'Study Sessions', 'color' => '#667eea', 'desc' => 'Learning & studying'],
-    'work' => ['icon' => '💼', 'name' => 'Work Blocks', 'color' => '#43e97b', 'desc' => 'Professional tasks'],
-    'todo' => ['icon' => '✅', 'name' => 'To-Do Tasks', 'color' => '#f093fb', 'desc' => 'General tasks'],
-    'break' => ['icon' => '☕', 'name' => 'Break Time', 'color' => '#feca57', 'desc' => 'Rest & recharge'],
-    'focus' => ['icon' => '🎯', 'name' => 'Focus Sessions', 'color' => '#4facfe', 'desc' => 'Deep work mode']
+    'work' => ['icon' => '💼', 'name' => 'Work', 'color' => '#43e97b', 'desc' => 'Professional tasks'],
+    'study' => ['icon' => '📚', 'name' => 'Study', 'color' => '#667eea', 'desc' => 'Learning & studying'],
+    'church' => ['icon' => '⛪', 'name' => 'Church', 'color' => '#9b59b6', 'desc' => 'Church activities'],
+    'event' => ['icon' => '📅', 'name' => 'Event', 'color' => '#3498db', 'desc' => 'General events'],
+    'focus' => ['icon' => '🎯', 'name' => 'Focus', 'color' => '#4facfe', 'desc' => 'Deep work mode'],
+    'break' => ['icon' => '☕', 'name' => 'Break', 'color' => '#feca57', 'desc' => 'Rest & recharge'],
+    'todo' => ['icon' => '✅', 'name' => 'To-Do', 'color' => '#f093fb', 'desc' => 'General tasks']
 ];
 
 // Calculate stats
@@ -173,7 +175,7 @@ try {
 
 $pageTitle = 'Schedule';
 $activePage = 'schedule';
-$cacheVersion = '10.0.0';
+$cacheVersion = '10.1.0';
 $pageCSS = ['/schedule/css/schedule.css?v=' . $cacheVersion];
 $pageJS = ['/schedule/js/schedule.js?v=' . $cacheVersion];
 
@@ -577,12 +579,13 @@ require_once __DIR__ . '/../shared/components/header.php';
                 <div class="form-group">
                     <label>Event Type</label>
                     <select id="eventType" class="form-control">
-                        <option value="study">📚 Study</option>
                         <option value="work">💼 Work</option>
-                        <option value="todo">✅ To-Do</option>
+                        <option value="study">📚 Study</option>
+                        <option value="church">⛪ Church</option>
+                        <option value="event">📅 Event</option>
                         <option value="focus">🎯 Focus</option>
                         <option value="break">☕ Break</option>
-                        <option value="birthday">🎂 Birthday</option>
+                        <option value="todo">✅ To-Do</option>
                     </select>
                 </div>
 
@@ -683,11 +686,13 @@ require_once __DIR__ . '/../shared/components/header.php';
                 <div class="form-group">
                     <label>Type</label>
                     <select id="editEventType" class="form-control">
-                        <option value="study">📚 Study</option>
                         <option value="work">💼 Work</option>
-                        <option value="todo">✅ To-Do</option>
+                        <option value="study">📚 Study</option>
+                        <option value="church">⛪ Church</option>
+                        <option value="event">📅 Event</option>
                         <option value="focus">🎯 Focus</option>
                         <option value="break">☕ Break</option>
+                        <option value="todo">✅ To-Do</option>
                     </select>
                 </div>
 
@@ -903,11 +908,13 @@ require_once __DIR__ . '/../shared/components/header.php';
         <div class="modal-body">
             <p style="margin-bottom: 16px;">Select new type for selected events:</p>
             <div class="type-grid">
-                <button onclick="applyBulkType('study')" class="type-btn study">📚 Study</button>
                 <button onclick="applyBulkType('work')" class="type-btn work">💼 Work</button>
-                <button onclick="applyBulkType('todo')" class="type-btn todo">✅ To-Do</button>
+                <button onclick="applyBulkType('study')" class="type-btn study">📚 Study</button>
+                <button onclick="applyBulkType('church')" class="type-btn church">⛪ Church</button>
+                <button onclick="applyBulkType('event')" class="type-btn event">📅 Event</button>
                 <button onclick="applyBulkType('focus')" class="type-btn focus">🎯 Focus</button>
                 <button onclick="applyBulkType('break')" class="type-btn break">☕ Break</button>
+                <button onclick="applyBulkType('todo')" class="type-btn todo">✅ To-Do</button>
             </div>
         </div>
     </div>

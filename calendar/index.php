@@ -75,10 +75,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     throw new Exception('Start date/time is required');
                 }
 
-                // Validate kind
-                $validKinds = ['study', 'work', 'todo', 'break', 'focus', 'birthday', 'event', 'other'];
+                // Validate kind - Calendar focuses on dates/occasions
+                $validKinds = ['birthday', 'anniversary', 'holiday', 'family_event', 'date', 'reminder', 'event', 'other'];
                 if (!in_array($kind, $validKinds)) {
-                    $kind = 'other';
+                    $kind = 'event';
                 }
 
                 $stmt = $db->prepare("
@@ -498,7 +498,7 @@ $doneEvents = count(array_filter($events, fn($e) => $e['status'] === 'done'));
 
 $pageTitle = 'Calendar';
 $activePage = 'calendar';
-$cacheVersion = '3.1.0';
+$cacheVersion = '3.2.0';
 $pageCSS = ['/calendar/css/calendar.css?v=' . $cacheVersion];
 $pageJS = ['/calendar/js/calendar.js?v=' . $cacheVersion];
 
@@ -716,20 +716,28 @@ require_once __DIR__ . '/../shared/components/header.php';
                     </div>
                     <div class="legend-list">
                         <div class="legend-item">
-                            <div class="legend-color" style="background: #3498db;"></div>
-                            <div class="legend-label">General</div>
+                            <div class="legend-color" style="background: #e74c3c;"></div>
+                            <div class="legend-label">🎂 Birthday</div>
                         </div>
                         <div class="legend-item">
                             <div class="legend-color" style="background: #9b59b6;"></div>
-                            <div class="legend-label">Study</div>
+                            <div class="legend-label">💍 Anniversary</div>
                         </div>
                         <div class="legend-item">
-                            <div class="legend-color" style="background: #e74c3c;"></div>
-                            <div class="legend-label">Important</div>
+                            <div class="legend-color" style="background: #f39c12;"></div>
+                            <div class="legend-label">🎉 Holiday</div>
                         </div>
                         <div class="legend-item">
                             <div class="legend-color" style="background: #2ecc71;"></div>
-                            <div class="legend-label">Family</div>
+                            <div class="legend-label">👨‍👩‍👧‍👦 Family</div>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #e91e63;"></div>
+                            <div class="legend-label">❤️ Date</div>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #3498db;"></div>
+                            <div class="legend-label">📅 Event</div>
                         </div>
                     </div>
                 </div>
@@ -799,12 +807,13 @@ require_once __DIR__ . '/../shared/components/header.php';
                 <div class="form-group">
                     <label>Event Type</label>
                     <select id="eventKind" class="form-control">
-                        <option value="event">📅 Event</option>
                         <option value="birthday">🎂 Birthday</option>
-                        <option value="study">📚 Study</option>
-                        <option value="work">💼 Work</option>
-                        <option value="todo">✅ To-Do</option>
-                        <option value="other">📌 Other</option>
+                        <option value="anniversary">💍 Anniversary</option>
+                        <option value="holiday">🎉 Holiday</option>
+                        <option value="family_event">👨‍👩‍👧‍👦 Family Event</option>
+                        <option value="date">❤️ Special Date</option>
+                        <option value="reminder">🔔 Reminder</option>
+                        <option value="event" selected>📅 General Event</option>
                     </select>
                 </div>
 
@@ -927,12 +936,13 @@ require_once __DIR__ . '/../shared/components/header.php';
                 <div class="form-group">
                     <label>Event Type</label>
                     <select id="editEventKind" class="form-control">
-                        <option value="event">📅 Event</option>
                         <option value="birthday">🎂 Birthday</option>
-                        <option value="study">📚 Study</option>
-                        <option value="work">💼 Work</option>
-                        <option value="todo">✅ To-Do</option>
-                        <option value="other">📌 Other</option>
+                        <option value="anniversary">💍 Anniversary</option>
+                        <option value="holiday">🎉 Holiday</option>
+                        <option value="family_event">👨‍👩‍👧‍👦 Family Event</option>
+                        <option value="date">❤️ Special Date</option>
+                        <option value="reminder">🔔 Reminder</option>
+                        <option value="event">📅 General Event</option>
                     </select>
                 </div>
 
