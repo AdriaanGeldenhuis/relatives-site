@@ -69,8 +69,8 @@ try {
     }
     // ========== END SUBSCRIPTION LOCK ==========
     
-    // Prepare values with validation
-    $updateInterval = isset($input['update_interval_seconds']) ? (int)$input['update_interval_seconds'] : 10;
+    // Prepare values with validation (default 60s for battery efficiency)
+    $updateInterval = isset($input['update_interval_seconds']) ? (int)$input['update_interval_seconds'] : 60;
     $historyRetention = isset($input['history_retention_days']) ? (int)$input['history_retention_days'] : 30;
     $showSpeed = isset($input['show_speed']) ? (int)(bool)$input['show_speed'] : 1;
     $showBattery = isset($input['show_battery']) ? (int)(bool)$input['show_battery'] : 1;
@@ -105,7 +105,7 @@ try {
                 updated_at = NOW()
             WHERE user_id = ?
         ");
-        
+
         $stmt->execute([
             $updateInterval,
             $historyRetention,
@@ -117,7 +117,7 @@ try {
             $backgroundTracking,
             $userId
         ]);
-        
+
     } else {
         // Insert
         $stmt = $db->prepare("
@@ -127,7 +127,7 @@ try {
              high_accuracy_mode, background_tracking, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
         ");
-        
+
         $stmt->execute([
             $userId,
             $familyId,
@@ -141,6 +141,10 @@ try {
             $backgroundTracking
         ]);
     }
+
+    // Also sync to users.location_update_interval for page reload consistency
+    $stmt = $db->prepare("UPDATE users SET location_update_interval = ? WHERE id = ?");
+    $stmt->execute([$updateInterval, $userId]);
     
     echo json_encode([
         'success' => true,

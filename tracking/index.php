@@ -15,12 +15,17 @@ require_once __DIR__ . '/../core/bootstrap.php';
 try {
     $auth = new Auth($db);
     $user = $auth->getCurrentUser();
-    
+
     if (!$user) {
         header('Location: /login.php?session_expired=1', true, 302);
         exit;
     }
-    
+
+    // Get user's location update interval (default 60 seconds for battery efficiency)
+    $pollingInterval = (int)($user['location_update_interval'] ?? 60);
+    // Ensure minimum 10 seconds, maximum 300 seconds
+    $pollingInterval = max(10, min(300, $pollingInterval));
+
 } catch (Exception $e) {
     error_log('Tracking page error: ' . $e->getMessage());
     header('Location: /login.php?error=1', true, 302);
@@ -486,12 +491,13 @@ require_once __DIR__ . '/../shared/components/header.php';
                     <div class="form-group">
                         <label class="form-label">Update Interval</label>
                         <select name="update_interval_seconds" class="form-select">
-                            <option value="5">Every 5 seconds (High accuracy)</option>
-                            <option value="10" selected>Every 10 seconds (Recommended)</option>
-                            <option value="30">Every 30 seconds (Battery saver)</option>
-                            <option value="60">Every 60 seconds (Low frequency)</option>
+                            <option value="10">Every 10 seconds (High accuracy)</option>
+                            <option value="30">Every 30 seconds (Balanced)</option>
+                            <option value="60" selected>Every 60 seconds (Recommended)</option>
+                            <option value="120">Every 2 minutes (Battery saver)</option>
+                            <option value="300">Every 5 minutes (Low frequency)</option>
                         </select>
-                        <span class="form-hint">More frequent updates use more battery</span>
+                        <span class="form-hint">60 seconds recommended for battery efficiency</span>
                     </div>
                     
                     <div class="form-group">
@@ -600,7 +606,8 @@ window.TrackingConfig = {
     members: <?= json_encode($familyMembers) ?>,
     zones: <?= json_encode($zones) ?>,
     defaultCenter: [-26.2041, 28.0473],
-    defaultZoom: 12
+    defaultZoom: 12,
+    pollingInterval: <?= $pollingInterval ?> // User's location update interval in seconds
 };
 
 /**
