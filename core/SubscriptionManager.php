@@ -84,33 +84,48 @@ class SubscriptionManager {
      */
     public function isFamilyLocked(int $familyId): bool {
         $stmt = $this->db->prepare("
-            SELECT 
+            SELECT
                 f.created_at,
+                f.trial_ends_at,
+                f.subscription_status,
+                f.subscription_expires_at,
                 COUNT(s.id) as active_subs
             FROM families f
-            LEFT JOIN subscriptions s ON f.id = s.family_id 
+            LEFT JOIN subscriptions s ON f.id = s.family_id
                 AND s.status = 'active'
                 AND s.expires_at > NOW()
             WHERE f.id = ?
-            GROUP BY f.id, f.created_at
+            GROUP BY f.id, f.created_at, f.trial_ends_at, f.subscription_status, f.subscription_expires_at
         ");
         $stmt->execute([$familyId]);
         $row = $stmt->fetch();
-        
+
         if (!$row) {
             return true;
         }
-        
+
         // Has active subscription = not locked
         if ((int)$row['active_subs'] > 0) {
             return false;
         }
-        
-        // Check if trial expired
-        $createdAt = new DateTime($row['created_at']);
-        $trialEnd = (clone $createdAt)->modify('+' . self::TRIAL_DAYS . ' days');
+
+        // Check family-level subscription
+        if ($row['subscription_status'] === 'active' && $row['subscription_expires_at']) {
+            $expiresAt = new DateTime($row['subscription_expires_at']);
+            if (new DateTime() < $expiresAt) {
+                return false;
+            }
+        }
+
+        // Check if trial expired - use trial_ends_at if set, fallback to created_at + 3 days
         $now = new DateTime();
-        
+        if ($row['trial_ends_at']) {
+            $trialEnd = new DateTime($row['trial_ends_at']);
+        } else {
+            $createdAt = new DateTime($row['created_at']);
+            $trialEnd = (clone $createdAt)->modify('+' . self::TRIAL_DAYS . ' days');
+        }
+
         return $now > $trialEnd;
     }
     
@@ -118,24 +133,35 @@ class SubscriptionManager {
      * Get trial information
      */
     public function getTrialInfo(int $familyId): array {
-        $stmt = $this->db->prepare("SELECT created_at FROM families WHERE id = ?");
+        $stmt = $this->db->prepare("
+            SELECT created_at, trial_started_at, trial_ends_at, subscription_status
+            FROM families WHERE id = ?
+        ");
         $stmt->execute([$familyId]);
-        $createdAt = $stmt->fetchColumn();
-        
-        if (!$createdAt) {
+        $family = $stmt->fetch();
+
+        if (!$family) {
             return [
                 'is_trial' => false,
                 'ends_at' => null,
                 'expired' => true
             ];
         }
-        
-        $created = new DateTime($createdAt);
-        $trialEnd = (clone $created)->modify('+' . self::TRIAL_DAYS . ' days');
+
         $now = new DateTime();
-        
+
+        // Use explicit trial_ends_at if set, otherwise calculate from created_at
+        if ($family['trial_ends_at']) {
+            $trialEnd = new DateTime($family['trial_ends_at']);
+        } else {
+            $created = new DateTime($family['created_at']);
+            $trialEnd = (clone $created)->modify('+' . self::TRIAL_DAYS . ' days');
+        }
+
+        $isTrial = $family['subscription_status'] === 'trial' || !$family['subscription_status'];
+
         return [
-            'is_trial' => true,
+            'is_trial' => $isTrial,
             'ends_at' => $trialEnd->format('Y-m-d H:i:s'),
             'expired' => $now > $trialEnd
         ];
