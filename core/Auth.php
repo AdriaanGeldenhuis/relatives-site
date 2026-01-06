@@ -118,10 +118,17 @@ public function login(string $email, string $password): array {
             // Generate unique invite code
             $inviteCode = $this->generateInviteCode();
             
-            // Create family
+            // Create family with 3-day free trial
             $stmt = $this->db->prepare("
-                INSERT INTO families (name, invite_code, timezone, created_at) 
-                VALUES (?, ?, 'Africa/Johannesburg', NOW())
+                INSERT INTO families (
+                    name,
+                    invite_code,
+                    timezone,
+                    subscription_status,
+                    trial_started_at,
+                    trial_ends_at,
+                    created_at
+                ) VALUES (?, ?, 'Africa/Johannesburg', 'trial', NOW(), DATE_ADD(NOW(), INTERVAL 3 DAY), NOW())
             ");
             $stmt->execute([$familyName, $inviteCode]);
             $familyId = (int)$this->db->lastInsertId();
