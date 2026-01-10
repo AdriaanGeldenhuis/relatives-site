@@ -44,9 +44,9 @@ try {
     $settings = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$settings) {
-        // Return defaults
+        // Return defaults - 60 seconds recommended for battery efficiency
         $settings = [
-            'update_interval_seconds' => 10,
+            'update_interval_seconds' => 60,
             'history_retention_days' => 30,
             'show_speed' => 1,
             'show_battery' => 1,

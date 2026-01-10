@@ -1050,21 +1050,25 @@ class TrackingMapProfessional {
     }
     
     // ============================================
-    // POLLING (OPTIMIZED)
+    // POLLING (OPTIMIZED - Uses user's DB setting)
     // ============================================
-    
+
     startPolling() {
         if (this.updateInterval) {
             clearInterval(this.updateInterval);
         }
-        
+
+        // Use user's location_update_interval from database (default 60s for battery efficiency)
+        const intervalSeconds = this.config.pollingInterval || 60;
+        const intervalMs = intervalSeconds * 1000;
+
         this.updateInterval = setInterval(() => {
             if (!document.hidden) {
                 this.fetchCurrentLocations();
             }
-        }, 8000);
-        
-        console.log('✅ Location polling started (8s interval)');
+        }, intervalMs);
+
+        console.log(`✅ Location polling started (${intervalSeconds}s interval)`);
     }
     
     stopPolling() {
@@ -1699,13 +1703,13 @@ class TrackingMapProfessional {
                 console.log('✅ Android settings updated');
             }
             
-            const newInterval = parseInt(settings.update_interval_seconds) * 1000;
-            if (this.updateInterval && newInterval !== 8000) {
+            // Update polling with new interval
+            const newIntervalSeconds = parseInt(settings.update_interval_seconds);
+            if (newIntervalSeconds && newIntervalSeconds !== this.config.pollingInterval) {
+                this.config.pollingInterval = newIntervalSeconds;
                 this.stopPolling();
-                this.updateInterval = setInterval(() => {
-                    this.fetchCurrentLocations();
-                }, newInterval);
-                console.log(`✅ Polling interval updated to ${settings.update_interval_seconds}s`);
+                this.startPolling();
+                console.log(`✅ Polling interval updated to ${newIntervalSeconds}s`);
             }
             
         } catch (error) {
