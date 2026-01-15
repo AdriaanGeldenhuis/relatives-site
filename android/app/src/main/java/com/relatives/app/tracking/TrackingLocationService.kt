@@ -11,6 +11,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.location.Location
+import android.location.LocationManager
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -82,6 +83,10 @@ class TrackingLocationService : Service() {
         // Wakelock (only for LIVE mode, time-limited)
         const val WAKELOCK_TAG = "relatives:tracking_live"
         const val WAKELOCK_TIMEOUT_MS = 120_000L  // 2 minutes max
+        const val WAKELOCK_RENEWAL_INTERVAL_MS = 90_000L // Renew every 90 seconds in LIVE mode
+
+        // Heartbeat timer for IDLE mode
+        const val HEARTBEAT_INTERVAL_MS = 600_000L // 10 minutes
 
         fun startTracking(context: Context) {
             val intent = Intent(context, TrackingLocationService::class.java).apply {
@@ -125,6 +130,8 @@ class TrackingLocationService : Service() {
     // Handlers
     private val mainHandler = Handler(Looper.getMainLooper())
     private var modeCheckRunnable: Runnable? = null
+    private var heartbeatRunnable: Runnable? = null
+    private var wakelockRenewalRunnable: Runnable? = null
     private var activityTransitionPendingIntent: PendingIntent? = null
 
     // Location callback
@@ -209,6 +216,18 @@ class TrackingLocationService : Service() {
         if (!hasLocationPermission()) {
             Log.e(TAG, "No location permission, cannot start tracking")
             updateNotification(TrackingMode.IDLE, "Location permission required")
+            return
+        }
+
+        // Check if location services are enabled
+        if (!isLocationServicesEnabled()) {
+            Log.w(TAG, "Location services disabled")
+            // Still start service but show offline status
+            prefs.enableTracking()
+            startForegroundService()
+            isServiceRunning = true
+            updateNotification(TrackingMode.IDLE, "OFFLINE - Enable location")
+            startModeChecker() // Will detect when services come back on
             return
         }
 
@@ -308,11 +327,20 @@ class TrackingLocationService : Service() {
         val oldMode = currentMode
         currentMode = newMode
 
-        // Handle wakelock
+        // Handle wakelock and renewal timer
         if (newMode == TrackingMode.LIVE) {
             acquireTimeLimitedWakeLock()
+            startWakelockRenewal()
         } else if (oldMode == TrackingMode.LIVE) {
+            stopWakelockRenewal()
             releaseWakeLock()
+        }
+
+        // Handle heartbeat timer for IDLE mode
+        if (newMode == TrackingMode.IDLE) {
+            startHeartbeatTimer()
+        } else if (oldMode == TrackingMode.IDLE) {
+            stopHeartbeatTimer()
         }
 
         // Update location request
@@ -492,6 +520,13 @@ class TrackingLocationService : Service() {
     private fun checkAndUpdateMode() {
         val now = System.currentTimeMillis()
 
+        // Check if location services are enabled
+        if (!isLocationServicesEnabled()) {
+            Log.w(TAG, "Location services disabled - showing offline")
+            updateNotification(currentMode, "OFFLINE - Enable location")
+            return
+        }
+
         // Check viewer timeout
         if (currentMode == TrackingMode.LIVE && now > viewerLiveUntil) {
             Log.d(TAG, "Viewer timeout - dropping from LIVE mode")
@@ -585,6 +620,96 @@ class TrackingLocationService : Service() {
         activityTransitionPendingIntent = null
     }
 
+    // ============ HEARTBEAT TIMER (IDLE MODE) ============
+
+    /**
+     * Start heartbeat timer for IDLE mode.
+     * Actively requests location and uploads every 10 minutes,
+     * regardless of whether passive location updates are received.
+     */
+    private fun startHeartbeatTimer() {
+        stopHeartbeatTimer()
+
+        heartbeatRunnable = object : Runnable {
+            override fun run() {
+                if (currentMode == TrackingMode.IDLE && isServiceRunning) {
+                    Log.d(TAG, "Heartbeat timer fired - requesting location for heartbeat")
+                    requestHeartbeatLocation()
+                    mainHandler.postDelayed(this, HEARTBEAT_INTERVAL_MS)
+                }
+            }
+        }
+        // First heartbeat after 10 minutes
+        mainHandler.postDelayed(heartbeatRunnable!!, HEARTBEAT_INTERVAL_MS)
+        Log.d(TAG, "Heartbeat timer started (${HEARTBEAT_INTERVAL_MS}ms interval)")
+    }
+
+    private fun stopHeartbeatTimer() {
+        heartbeatRunnable?.let { mainHandler.removeCallbacks(it) }
+        heartbeatRunnable = null
+    }
+
+    /**
+     * Request current location specifically for heartbeat upload.
+     * Uses balanced accuracy to save battery while ensuring we get a location.
+     */
+    private fun requestHeartbeatLocation() {
+        if (!hasLocationPermission() || !isLocationServicesEnabled()) {
+            Log.w(TAG, "Cannot request heartbeat location - no permission or services disabled")
+            return
+        }
+
+        try {
+            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null)
+                .addOnSuccessListener { location ->
+                    location?.let {
+                        Log.d(TAG, "Heartbeat location received: lat=${it.latitude}, lng=${it.longitude}")
+                        // Force upload regardless of last upload time
+                        uploadHeartbeat(it)
+                    } ?: Log.w(TAG, "Heartbeat location request returned null")
+                }
+                .addOnFailureListener { e ->
+                    Log.e(TAG, "Heartbeat location request failed", e)
+                }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Security exception requesting heartbeat location", e)
+        }
+    }
+
+    /**
+     * Upload a heartbeat location unconditionally.
+     */
+    private fun uploadHeartbeat(location: Location) {
+        if (prefs.isAuthBlocked()) {
+            Log.d(TAG, "Auth blocked, skipping heartbeat upload")
+            return
+        }
+        if (isInBackoff()) {
+            Log.d(TAG, "In backoff, skipping heartbeat upload")
+            return
+        }
+
+        uploader.uploadLocation(
+            location = location,
+            isMoving = false, // Heartbeat is always "not moving"
+            onSuccess = {
+                lastUploadTime = System.currentTimeMillis()
+                prefs.resetFailureState()
+                Log.d(TAG, "Heartbeat uploaded successfully")
+            },
+            onAuthFailure = {
+                Log.w(TAG, "Heartbeat auth failure - blocking uploads for 30 minutes")
+                prefs.authFailureUntil = System.currentTimeMillis() + 30 * 60 * 1000
+                updateNotification(currentMode, "Login required")
+            },
+            onTransientFailure = {
+                prefs.consecutiveFailures++
+                prefs.lastFailureTime = System.currentTimeMillis()
+                Log.w(TAG, "Heartbeat transient failure, consecutive count: ${prefs.consecutiveFailures}")
+            }
+        )
+    }
+
     // ============ WAKELOCK (LIMITED) ============
 
     /**
@@ -592,7 +717,7 @@ class TrackingLocationService : Service() {
      * The wakelock will auto-release after WAKELOCK_TIMEOUT_MS.
      */
     private fun acquireTimeLimitedWakeLock() {
-        if (wakeLock?.isHeld == true) return
+        releaseWakeLock() // Release any existing wakelock first
 
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = powerManager.newWakeLock(
@@ -613,6 +738,31 @@ class TrackingLocationService : Service() {
             }
         }
         wakeLock = null
+    }
+
+    /**
+     * Start wakelock renewal timer for LIVE mode.
+     * Renews the wakelock every 90 seconds while in LIVE mode.
+     */
+    private fun startWakelockRenewal() {
+        stopWakelockRenewal()
+
+        wakelockRenewalRunnable = object : Runnable {
+            override fun run() {
+                if (currentMode == TrackingMode.LIVE && isServiceRunning) {
+                    Log.d(TAG, "Renewing wakelock for LIVE mode")
+                    acquireTimeLimitedWakeLock()
+                    mainHandler.postDelayed(this, WAKELOCK_RENEWAL_INTERVAL_MS)
+                }
+            }
+        }
+        mainHandler.postDelayed(wakelockRenewalRunnable!!, WAKELOCK_RENEWAL_INTERVAL_MS)
+        Log.d(TAG, "Wakelock renewal timer started")
+    }
+
+    private fun stopWakelockRenewal() {
+        wakelockRenewalRunnable?.let { mainHandler.removeCallbacks(it) }
+        wakelockRenewalRunnable = null
     }
 
     // ============ NOTIFICATION ============
@@ -709,6 +859,12 @@ class TrackingLocationService : Service() {
         // Stop mode checker
         stopModeChecker()
 
+        // Stop heartbeat timer
+        stopHeartbeatTimer()
+
+        // Stop wakelock renewal timer
+        stopWakelockRenewal()
+
         // Remove location updates
         try {
             fusedLocationClient.removeLocationUpdates(locationCallback)
@@ -730,5 +886,19 @@ class TrackingLocationService : Service() {
                 PackageManager.PERMISSION_GRANTED ||
                 ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) ==
                 PackageManager.PERMISSION_GRANTED
+    }
+
+    /**
+     * Check if location services (GPS/Network) are enabled on the device.
+     */
+    private fun isLocationServicesEnabled(): Boolean {
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        return try {
+            locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                    locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        } catch (e: Exception) {
+            Log.w(TAG, "Error checking location services", e)
+            false
+        }
     }
 }
