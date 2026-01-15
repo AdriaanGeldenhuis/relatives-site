@@ -106,6 +106,21 @@ class MainActivity : AppCompatActivity() {
                     true
                 }
             }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                // CRITICAL: Native fallback to hide loader after page loads
+                // This ensures loader is hidden even if JS fails to execute on cold start
+                view?.evaluateJavascript("""
+                    (function() {
+                        var loader = document.getElementById('appLoader');
+                        if (loader && !loader.classList.contains('hidden')) {
+                            console.log('📱 Native fallback: hiding loader from Android');
+                            loader.classList.add('hidden');
+                        }
+                    })();
+                """.trimIndent(), null)
+            }
         }
 
         webView.webChromeClient = WebChromeClient()
