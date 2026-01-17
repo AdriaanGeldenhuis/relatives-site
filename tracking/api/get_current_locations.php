@@ -101,9 +101,10 @@ try {
         $isMoving = (bool)($member['is_moving'] ?? false);
 
         // Use DB thresholds with sensible defaults
-        $idleHeartbeat = (int)($member['idle_heartbeat_seconds'] ?? 600);        // default 10 min
-        $staleThreshold = (int)($member['stale_threshold_seconds'] ?? 3600);     // default 60 min
-        $offlineThreshold = (int)($member['offline_threshold_seconds'] ?? 720);  // default 12 min
+        // If DB value is NULL or 0, use sensible defaults
+        $idleHeartbeat = (int)($member['idle_heartbeat_seconds'] ?? 0) ?: 600;        // default 10 min
+        $staleThreshold = (int)($member['stale_threshold_seconds'] ?? 0) ?: 3600;     // default 60 min
+        $offlineThreshold = (int)($member['offline_threshold_seconds'] ?? 0) ?: 720;  // default 12 min
 
         // Calculate moving threshold: max(update_interval * 2, 60 seconds)
         $movingThreshold = max($updateInterval * 2, 60);
