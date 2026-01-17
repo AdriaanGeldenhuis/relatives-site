@@ -78,12 +78,30 @@ try {
     $isTrackingEnabled = isset($input['is_tracking_enabled']) ? (int)(bool)$input['is_tracking_enabled'] : 1;
     $highAccuracyMode = isset($input['high_accuracy_mode']) ? (int)(bool)$input['high_accuracy_mode'] : 1;
     $backgroundTracking = isset($input['background_tracking']) ? (int)(bool)$input['background_tracking'] : 1;
-    
+
+    // Status threshold settings
+    $idleHeartbeatSeconds = isset($input['idle_heartbeat_seconds']) ? (int)$input['idle_heartbeat_seconds'] : 600;
+    $staleThresholdSeconds = isset($input['stale_threshold_seconds']) ? (int)$input['stale_threshold_seconds'] : 3600;
+    $offlineThresholdSeconds = isset($input['offline_threshold_seconds']) ? (int)$input['offline_threshold_seconds'] : 720;
+
     // Validate ranges
     if ($updateInterval < 5) $updateInterval = 5;
     if ($updateInterval > 300) $updateInterval = 300;
     if ($historyRetention < 1) $historyRetention = 1;
     if ($historyRetention > 365) $historyRetention = 365;
+
+    // Validate threshold ranges with sane minimums
+    // idle_heartbeat_seconds >= 60
+    if ($idleHeartbeatSeconds < 60) $idleHeartbeatSeconds = 60;
+    if ($idleHeartbeatSeconds > 7200) $idleHeartbeatSeconds = 7200; // max 2 hours
+
+    // offline_threshold_seconds >= idle_heartbeat_seconds
+    if ($offlineThresholdSeconds < $idleHeartbeatSeconds) $offlineThresholdSeconds = $idleHeartbeatSeconds;
+    if ($offlineThresholdSeconds > 86400) $offlineThresholdSeconds = 86400; // max 24 hours
+
+    // stale_threshold_seconds >= offline_threshold_seconds
+    if ($staleThresholdSeconds < $offlineThresholdSeconds) $staleThresholdSeconds = $offlineThresholdSeconds;
+    if ($staleThresholdSeconds > 86400) $staleThresholdSeconds = 86400; // max 24 hours
     
     // Check if settings exist
     $stmt = $db->prepare("SELECT id FROM tracking_settings WHERE user_id = ? LIMIT 1");
@@ -102,6 +120,9 @@ try {
                 is_tracking_enabled = ?,
                 high_accuracy_mode = ?,
                 background_tracking = ?,
+                idle_heartbeat_seconds = ?,
+                stale_threshold_seconds = ?,
+                offline_threshold_seconds = ?,
                 updated_at = NOW()
             WHERE user_id = ?
         ");
@@ -115,6 +136,9 @@ try {
             $isTrackingEnabled,
             $highAccuracyMode,
             $backgroundTracking,
+            $idleHeartbeatSeconds,
+            $staleThresholdSeconds,
+            $offlineThresholdSeconds,
             $userId
         ]);
 
@@ -124,8 +148,10 @@ try {
             INSERT INTO tracking_settings
             (user_id, family_id, update_interval_seconds, history_retention_days,
              show_speed, show_battery, show_accuracy, is_tracking_enabled,
-             high_accuracy_mode, background_tracking, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+             high_accuracy_mode, background_tracking,
+             idle_heartbeat_seconds, stale_threshold_seconds, offline_threshold_seconds,
+             created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
         ");
 
         $stmt->execute([
@@ -138,7 +164,10 @@ try {
             $showAccuracy,
             $isTrackingEnabled,
             $highAccuracyMode,
-            $backgroundTracking
+            $backgroundTracking,
+            $idleHeartbeatSeconds,
+            $staleThresholdSeconds,
+            $offlineThresholdSeconds
         ]);
     }
 

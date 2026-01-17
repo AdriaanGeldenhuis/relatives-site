@@ -508,17 +508,17 @@ class TrackingMapProfessional {
                     ">
                         ${markerContent}
                     </div>
-                    ${member.status === 'online' || member.status === 'stale' ? `
+                    ${member.status === 'moving' || member.status === 'idle' || member.status === 'stale' ? `
                         <div style="
                             position: absolute;
                             top: -46px;
                             left: 8px;
                             width: 14px;
                             height: 14px;
-                            background: ${member.status === 'online' ? '#43e97b' : '#ffa502'};
+                            background: ${member.status === 'moving' ? '#43e97b' : member.status === 'idle' ? '#4facfe' : '#ffa502'};
                             border: 2px solid white;
                             border-radius: 50%;
-                            box-shadow: 0 2px 6px ${member.status === 'online' ? 'rgba(67, 233, 123, 0.6)' : 'rgba(255, 165, 2, 0.4)'};
+                            box-shadow: 0 2px 6px ${member.status === 'moving' ? 'rgba(67, 233, 123, 0.6)' : member.status === 'idle' ? 'rgba(79, 172, 254, 0.6)' : 'rgba(255, 165, 2, 0.4)'};
                         "></div>
                     ` : ''}
                 </div>
@@ -588,17 +588,17 @@ class TrackingMapProfessional {
                     overflow: hidden;
                 ">
                     ${markerContent}
-                    ${member.status === 'online' || member.status === 'stale' ? `
+                    ${member.status === 'moving' || member.status === 'idle' || member.status === 'stale' ? `
                         <div style="
                             position: absolute;
                             bottom: 0;
                             right: 0;
                             width: 18px;
                             height: 18px;
-                            background: ${member.status === 'online' ? '#43e97b' : '#ffa502'};
+                            background: ${member.status === 'moving' ? '#43e97b' : member.status === 'idle' ? '#4facfe' : '#ffa502'};
                             border: 3px solid white;
                             border-radius: 50%;
-                            box-shadow: 0 2px 8px ${member.status === 'online' ? 'rgba(67, 233, 123, 0.6)' : 'rgba(255, 165, 2, 0.4)'};
+                            box-shadow: 0 2px 8px ${member.status === 'moving' ? 'rgba(67, 233, 123, 0.6)' : member.status === 'idle' ? 'rgba(79, 172, 254, 0.6)' : 'rgba(255, 165, 2, 0.4)'};
                         "></div>
                     ` : ''}
                 </div>
@@ -750,11 +750,11 @@ class TrackingMapProfessional {
                             ` : ''}
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="${member.status === 'online' ? '#43e97b' : member.status === 'stale' ? '#ffa502' : '#6c757d'}">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="${member.status === 'moving' ? '#43e97b' : member.status === 'idle' ? '#4facfe' : member.status === 'stale' ? '#ffa502' : '#6c757d'}">
                                 <circle cx="12" cy="12" r="10"></circle>
                             </svg>
-                            <span style="font-size: ${isMobile ? '12px' : '13px'}; font-weight: 700; color: ${member.status === 'online' ? '#43e97b' : member.status === 'stale' ? '#ffa502' : '#6c757d'};">
-                                ${member.status === 'online' ? 'Tracking' : member.status === 'stale' ? `Stale (${Math.floor((member.seconds_ago || 0) / 60)}m ago)` : member.status === 'no_location' ? 'No location yet' : 'Offline'}
+                            <span style="font-size: ${isMobile ? '12px' : '13px'}; font-weight: 700; color: ${member.status === 'moving' ? '#43e97b' : member.status === 'idle' ? '#4facfe' : member.status === 'stale' ? '#ffa502' : '#6c757d'};">
+                                ${member.status === 'moving' ? 'Moving' : member.status === 'idle' ? 'Idle' : member.status === 'stale' ? `Stale (${Math.floor((member.seconds_ago || 0) / 60)}m ago)` : member.status === 'no_location' ? 'No location yet' : 'Offline'}
                             </span>
                             ${member.status === 'stale' ? `
                                 <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">
@@ -975,20 +975,24 @@ class TrackingMapProfessional {
                     }
                 }
                 
-                // Handle new status values: online, stale, no_location, offline
+                // Handle new status values: moving, idle, stale, no_location, offline
                 const status = member.status;
-                const isTracking = status === 'online';
+                const isMoving = status === 'moving';
+                const isIdle = status === 'idle';
                 const isStale = status === 'stale';
                 const hasNoLocation = status === 'no_location';
 
-                memberCard.setAttribute('data-tracking', isTracking ? 'true' : 'false');
+                memberCard.setAttribute('data-tracking', (isMoving || isIdle) ? 'true' : 'false');
                 memberCard.setAttribute('data-status', status);
 
                 const statusDot = memberCard.querySelector('.member-status-dot');
                 if (statusDot) {
-                    if (isTracking) {
+                    if (isMoving) {
                         statusDot.style.background = '#43e97b'; // green
                         statusDot.style.boxShadow = '0 0 12px rgba(67, 233, 123, 0.6)';
+                    } else if (isIdle) {
+                        statusDot.style.background = '#4facfe'; // blue
+                        statusDot.style.boxShadow = '0 0 12px rgba(79, 172, 254, 0.6)';
                     } else if (isStale) {
                         statusDot.style.background = '#ffa502'; // amber
                         statusDot.style.boxShadow = '0 0 12px rgba(255, 165, 2, 0.4)';
@@ -1000,8 +1004,10 @@ class TrackingMapProfessional {
 
                 const statusText = memberCard.querySelector('.member-status span');
                 if (statusText) {
-                    if (isTracking) {
-                        statusText.textContent = 'Tracking';
+                    if (isMoving) {
+                        statusText.textContent = 'Moving';
+                    } else if (isIdle) {
+                        statusText.textContent = 'Idle';
                     } else if (isStale) {
                         // Show how long ago with seconds_ago - clearer message
                         const mins = Math.floor((member.seconds_ago || 0) / 60);
@@ -1645,7 +1651,17 @@ class TrackingMapProfessional {
             
             const historyRetentionEl = form.querySelector('[name="history_retention_days"]');
             if (historyRetentionEl) historyRetentionEl.value = settings.history_retention_days || 30;
-            
+
+            // Load threshold settings
+            const idleHeartbeatEl = form.querySelector('[name="idle_heartbeat_seconds"]');
+            if (idleHeartbeatEl) idleHeartbeatEl.value = settings.idle_heartbeat_seconds || 600;
+
+            const staleThresholdEl = form.querySelector('[name="stale_threshold_seconds"]');
+            if (staleThresholdEl) staleThresholdEl.value = settings.stale_threshold_seconds || 3600;
+
+            const offlineThresholdEl = form.querySelector('[name="offline_threshold_seconds"]');
+            if (offlineThresholdEl) offlineThresholdEl.value = settings.offline_threshold_seconds || 720;
+
             console.log('✅ Settings loaded successfully');
             
         } catch (error) {
@@ -1695,8 +1711,8 @@ class TrackingMapProfessional {
             this.showToast('Settings saved successfully! 🎉', 'success');
             this.closeSettingsModal();
             
-            if (window.Android && typeof window.Android.updateTrackingSettings === 'function') {
-                window.Android.updateTrackingSettings(
+            if (window.TrackingBridge && typeof window.TrackingBridge.updateTrackingSettings === 'function') {
+                window.TrackingBridge.updateTrackingSettings(
                     parseInt(settings.update_interval_seconds),
                     settings.high_accuracy_mode === 1
                 );
@@ -1813,8 +1829,8 @@ class TrackingMapProfessional {
     
     notifyAndroidTrackingVisible() {
         try {
-            if (window.Android && typeof window.Android.onTrackingScreenVisible === 'function') {
-                window.Android.onTrackingScreenVisible();
+            if (window.TrackingBridge && typeof window.TrackingBridge.onTrackingScreenVisible === 'function') {
+                window.TrackingBridge.onTrackingScreenVisible();
                 console.log('✅ Android: Tracking screen visible');
             }
         } catch (e) {
@@ -1824,8 +1840,8 @@ class TrackingMapProfessional {
     
     notifyAndroidTrackingHidden() {
         try {
-            if (window.Android && typeof window.Android.onTrackingScreenHidden === 'function') {
-                window.Android.onTrackingScreenHidden();
+            if (window.TrackingBridge && typeof window.TrackingBridge.onTrackingScreenHidden === 'function') {
+                window.TrackingBridge.onTrackingScreenHidden();
                 console.log('✅ Android: Tracking screen hidden');
             }
         } catch (e) {
@@ -1835,8 +1851,8 @@ class TrackingMapProfessional {
     
     requestLocationBoost(intervalSeconds = 5) {
         try {
-            if (window.Android && typeof window.Android.requestLocationBoost === 'function') {
-                window.Android.requestLocationBoost(intervalSeconds);
+            if (window.TrackingBridge && typeof window.TrackingBridge.requestLocationBoost === 'function') {
+                window.TrackingBridge.requestLocationBoost(intervalSeconds);
                 console.log(`✅ Android: Location boost requested (${intervalSeconds}s)`);
             }
         } catch (e) {

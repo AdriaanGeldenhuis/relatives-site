@@ -526,6 +526,56 @@ require_once __DIR__ . '/../shared/components/header.php';
                     </div>
                 </div>
                 
+                <!-- Status Thresholds Section -->
+                <div class="settings-section">
+                    <h3 class="section-title">Status Thresholds</h3>
+
+                    <div class="form-group">
+                        <label class="form-label">Idle Heartbeat (seconds)</label>
+                        <div class="input-group">
+                            <input type="number"
+                                   name="idle_heartbeat_seconds"
+                                   class="form-input"
+                                   value="600"
+                                   min="60"
+                                   max="7200"
+                                   style="flex: 1;">
+                            <span class="input-suffix">sec</span>
+                        </div>
+                        <span class="form-hint">How long before idle status becomes stale (default: 600 = 10 min)</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Offline Threshold (seconds)</label>
+                        <div class="input-group">
+                            <input type="number"
+                                   name="offline_threshold_seconds"
+                                   class="form-input"
+                                   value="720"
+                                   min="60"
+                                   max="86400"
+                                   style="flex: 1;">
+                            <span class="input-suffix">sec</span>
+                        </div>
+                        <span class="form-hint">Must be >= idle heartbeat (default: 720 = 12 min)</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Stale Threshold (seconds)</label>
+                        <div class="input-group">
+                            <input type="number"
+                                   name="stale_threshold_seconds"
+                                   class="form-input"
+                                   value="3600"
+                                   min="60"
+                                   max="86400"
+                                   style="flex: 1;">
+                            <span class="input-suffix">sec</span>
+                        </div>
+                        <span class="form-hint">Must be >= offline threshold. Beyond this = offline (default: 3600 = 60 min)</span>
+                    </div>
+                </div>
+
                 <!-- Display Options Section -->
                 <div class="settings-section">
                     <h3 class="section-title">Display Options</h3>

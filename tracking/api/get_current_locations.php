@@ -46,6 +46,9 @@ try {
             u.location_sharing,
             ts.is_tracking_enabled,
             ts.update_interval_seconds,
+            ts.idle_heartbeat_seconds,
+            ts.stale_threshold_seconds,
+            ts.offline_threshold_seconds,
             l.latitude,
             l.longitude,
             l.accuracy_m,
@@ -95,21 +98,29 @@ try {
     foreach ($members as $member) {
         $secondsAgo = $member['seconds_ago'];
         $updateInterval = (int)($member['update_interval_seconds'] ?? 60);
+        $isMoving = (bool)($member['is_moving'] ?? false);
 
-        // Smart thresholds based on user's update interval
-        // online: within 2x their update interval (minimum 300s = 5 min)
-        // stale: within 60 minutes (3600s)
-        // offline: no location ever OR >= 60 minutes
-        $onlineThreshold = max($updateInterval * 2, 300);
-        $staleThreshold = 3600; // 60 minutes
+        // Use DB thresholds with sensible defaults
+        $idleHeartbeat = (int)($member['idle_heartbeat_seconds'] ?? 600);        // default 10 min
+        $staleThreshold = (int)($member['stale_threshold_seconds'] ?? 3600);     // default 60 min
+        $offlineThreshold = (int)($member['offline_threshold_seconds'] ?? 720);  // default 12 min
 
-        // Determine status
+        // Calculate moving threshold: max(update_interval * 2, 60 seconds)
+        $movingThreshold = max($updateInterval * 2, 60);
+
+        // Determine status using exact rules:
+        // 1. No location row → "no_location"
+        // 2. is_moving=1 AND within movingThreshold → "moving"
+        // 3. is_moving=0 AND within idleHeartbeat → "idle"
+        // 4. within staleThreshold → "stale"
+        // 5. beyond staleThreshold → "offline"
         if ($secondsAgo === null) {
-            // Never sent location
             $status = 'no_location';
-        } elseif ($secondsAgo < $onlineThreshold) {
-            $status = 'online';
-        } elseif ($secondsAgo < $staleThreshold) {
+        } elseif ($isMoving && $secondsAgo <= $movingThreshold) {
+            $status = 'moving';
+        } elseif (!$isMoving && $secondsAgo <= $idleHeartbeat) {
+            $status = 'idle';
+        } elseif ($secondsAgo <= $staleThreshold) {
             $status = 'stale';
         } else {
             $status = 'offline';
@@ -133,8 +144,11 @@ try {
                 'device_name' => $member['device_name'],
                 'platform' => $member['platform'],
                 'source' => $member['source'],
-                'online_threshold' => $onlineThreshold,
-                'stale_threshold' => $staleThreshold
+                'is_moving' => $isMoving,
+                'moving_threshold' => $movingThreshold,
+                'idle_heartbeat' => $idleHeartbeat,
+                'stale_threshold' => $staleThreshold,
+                'offline_threshold' => $offlineThreshold
             ]
         ];
 

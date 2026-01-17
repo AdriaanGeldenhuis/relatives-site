@@ -26,7 +26,7 @@ try {
     $userId = (int)$_SESSION['user_id'];
     
     $stmt = $db->prepare("
-        SELECT 
+        SELECT
             update_interval_seconds,
             history_retention_days,
             show_speed,
@@ -34,7 +34,10 @@ try {
             show_accuracy,
             is_tracking_enabled,
             high_accuracy_mode,
-            background_tracking
+            background_tracking,
+            idle_heartbeat_seconds,
+            stale_threshold_seconds,
+            offline_threshold_seconds
         FROM tracking_settings
         WHERE user_id = ?
         LIMIT 1
@@ -53,7 +56,10 @@ try {
             'show_accuracy' => 1,
             'is_tracking_enabled' => 1,
             'high_accuracy_mode' => 1,
-            'background_tracking' => 1
+            'background_tracking' => 1,
+            'idle_heartbeat_seconds' => 600,      // 10 minutes default
+            'stale_threshold_seconds' => 3600,    // 60 minutes default
+            'offline_threshold_seconds' => 720    // 12 minutes default
         ];
     } else {
         // Convert to proper types
@@ -65,6 +71,9 @@ try {
         $settings['is_tracking_enabled'] = (bool)$settings['is_tracking_enabled'];
         $settings['high_accuracy_mode'] = (bool)$settings['high_accuracy_mode'];
         $settings['background_tracking'] = (bool)$settings['background_tracking'];
+        $settings['idle_heartbeat_seconds'] = (int)($settings['idle_heartbeat_seconds'] ?? 600);
+        $settings['stale_threshold_seconds'] = (int)($settings['stale_threshold_seconds'] ?? 3600);
+        $settings['offline_threshold_seconds'] = (int)($settings['offline_threshold_seconds'] ?? 720);
     }
     
     echo json_encode([
