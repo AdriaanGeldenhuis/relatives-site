@@ -111,14 +111,14 @@ try {
         // Determine status using exact rules:
         // 1. No location row → "no_location"
         // 2. is_moving=1 AND within movingThreshold → "moving"
-        // 3. is_moving=0 AND within idleHeartbeat → "idle"
-        // 4. within staleThreshold → "stale"
-        // 5. beyond staleThreshold → "offline"
+        // 3. Within idleHeartbeat (regardless of is_moving) → "idle"
+        // 4. Within staleThreshold → "stale"
+        // 5. Beyond staleThreshold → "offline"
         if ($secondsAgo === null) {
             $status = 'no_location';
         } elseif ($isMoving && $secondsAgo <= $movingThreshold) {
             $status = 'moving';
-        } elseif (!$isMoving && $secondsAgo <= $idleHeartbeat) {
+        } elseif ($secondsAgo <= $idleHeartbeat) {
             $status = 'idle';
         } elseif ($secondsAgo <= $staleThreshold) {
             $status = 'stale';
